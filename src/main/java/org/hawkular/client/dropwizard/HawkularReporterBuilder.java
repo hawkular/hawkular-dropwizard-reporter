@@ -34,7 +34,7 @@ public class HawkularReporterBuilder {
     private Integer dataRetention = null;
     private MetersRate metersRate = MetersRate.ONE_MINUTE;
 
-    HawkularReporterBuilder(MetricRegistry registry, String tenant) {
+    public HawkularReporterBuilder(MetricRegistry registry, String tenant) {
         this.registry = registry;
         this.hawkularClientBuilder = HawkularClient.builder(tenant);
     }
