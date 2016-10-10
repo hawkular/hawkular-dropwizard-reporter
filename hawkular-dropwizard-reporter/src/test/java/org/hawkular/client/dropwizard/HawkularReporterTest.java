@@ -17,24 +17,24 @@
 package org.hawkular.client.dropwizard;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.data.MapEntry.entry;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.List;
+import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.lang3.RandomStringUtils;
+import org.assertj.core.api.iterable.Extractor;
 import org.assertj.core.util.DoubleComparator;
-import org.hawkular.client.core.ClientResponse;
-import org.hawkular.client.core.HawkularClient;
-import org.hawkular.metrics.model.DataPoint;
+import org.hawkular.client.http.HawkularHttpResponse;
+import org.hawkular.client.http.JdkHawkularHttpClient;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.util.concurrent.AtomicDouble;
 
 /**
  * @author Joel Takvorian
@@ -43,7 +43,14 @@ public class HawkularReporterTest {
 
     private final MetricRegistry registry = new MetricRegistry();
     private final String defaultTenant = "unit-test";
-    private final HawkularClient defaultClient = HawkularClient.builder(defaultTenant).build();
+    private final JdkHawkularHttpClient defaultClient = new JdkHawkularHttpClient("http://localhost:8080");
+    private final Extractor<Object, Double> doubleExtractor = e -> (Double) ((JSONObject)e).get("value");
+    private final Extractor<Object, Integer> intExtractor = e -> (Integer) ((JSONObject)e).get("value");
+
+    @Before
+    public void setup() {
+        defaultClient.addHeaders(Collections.singletonMap("Hawkular-Tenant", defaultTenant));
+    }
 
     @Test
     public void shouldReportCounter() {
@@ -54,19 +61,20 @@ public class HawkularReporterTest {
         counter.inc(5);
         reporter.report();
 
-        ClientResponse<List<DataPoint<Long>>>
-                response = defaultClient.metrics().counter().findCounterData(metricName, null, null, null, null);
+        HawkularHttpResponse response = defaultClient.readMetric("counters", metricName);
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getEntity()).extracting(DataPoint::getValue).containsExactly(5L);
+        assertThat(response.getResponseCode()).isEqualTo(200);
+        JSONArray result = new JSONArray(response.getContent());
+        assertThat(result).extracting(intExtractor).containsExactly(5);
 
         counter.inc(8);
         reporter.report();
 
-        response = defaultClient.metrics().counter().findCounterData(metricName, null, null, null, null);
+        response = defaultClient.readMetric("counters", metricName);
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getEntity()).extracting(DataPoint::getValue).containsExactly(13L, 5L);
+        assertThat(response.getResponseCode()).isEqualTo(200);
+        result = new JSONArray(response.getContent());
+        assertThat(result).extracting(intExtractor).containsExactly(13, 5);
     }
 
     @Test
@@ -74,7 +82,7 @@ public class HawkularReporterTest {
         String metricName = randomName();
         HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
 
-        final AtomicDouble gauge = new AtomicDouble(10);
+        final AtomicReference<Double> gauge = new AtomicReference<>(10d);
         registry.register(metricName, (Gauge<Double>) gauge::get);
         reporter.report();
         gauge.set(7.1);
@@ -84,12 +92,11 @@ public class HawkularReporterTest {
         Thread.sleep(50);
         reporter.report();
 
-        ClientResponse<List<DataPoint<Double>>>
-                response = defaultClient.metrics().gauge().findGaugeDataWithId(metricName, null, null, null, null, null);
+        HawkularHttpResponse response = defaultClient.readMetric("gauges", metricName);
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getEntity())
-                .extracting(DataPoint::getValue)
+        assertThat(response.getResponseCode()).isEqualTo(200);
+        JSONArray result = new JSONArray(response.getContent());
+        assertThat(result).extracting(doubleExtractor)
                 .usingElementComparator(new DoubleComparator(0.001))
                 .containsExactly(13.4, 7.1, 10d);
     }
@@ -97,9 +104,7 @@ public class HawkularReporterTest {
     @Test
     public void shouldReportMeter() throws InterruptedException {
         String metricName = randomName();
-        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
-                .metersRate(MetersRate.MEAN)
-                .build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
 
         Meter meter = registry.meter(metricName);
         meter.mark(1000);
@@ -107,14 +112,21 @@ public class HawkularReporterTest {
         meter.mark(1000);
         reporter.report();
 
-        ClientResponse<List<DataPoint<Double>>>
-                response = defaultClient.metrics().gauge().findGaugeDataWithId(metricName, null, null, null, null, null);
+        HawkularHttpResponse response = defaultClient.readMetric("gauges", metricName + ".mean");
 
-        assertThat(response.isSuccess()).isTrue();
-        assertThat(response.getEntity()).hasSize(1);
-        Double rate = response.getEntity().get(0).getValue();
+        assertThat(response.getResponseCode()).isEqualTo(200);
+        JSONArray result = new JSONArray(response.getContent());
+        assertThat(result).hasSize(1);
+        Double rate = doubleExtractor.extract(result.get(0));
         // Should be around 15000 ~ 18000, never more than 20000
         assertThat(rate).isBetween(10000d, 20000d);
+
+        // It must also have posted a counter
+        response = defaultClient.readMetric("counters", metricName + ".count");
+
+        assertThat(response.getResponseCode()).isEqualTo(200);
+        result = new JSONArray(response.getContent());
+        assertThat(result).extracting(intExtractor).containsExactly(2000);
     }
 
     @Test
@@ -128,29 +140,13 @@ public class HawkularReporterTest {
         registry.register(metricName, (Gauge<Double>) () -> 5d);
         reporter.report();
 
-        ClientResponse<List<DataPoint<Double>>>
-                response = defaultClient.metrics().gauge().findGaugeDataWithId(metricName, null, null, null, null, null);
+        HawkularHttpResponse response = defaultClient.readMetric("gauges", metricName);
 
         // Wrong metric name
-        assertThat(response.getStatusCode()).isEqualTo(204);
+        assertThat(response.getResponseCode()).isEqualTo(204);
 
-        response = defaultClient.metrics().gauge().findGaugeDataWithId("prefix-" + metricName, null, null, null, null,
-                null);
-        assertThat(response.isSuccess()).isTrue();
-    }
-
-    @Test
-    public void shouldConfigureHawkularClient() throws URISyntaxException {
-        URI uri = new URI("https://someting:443/hawkular");
-        HawkularReporter reporter = HawkularReporter
-                .builder(registry, "other-tenant")
-                .hawkularInfo(client -> client.tokenAuthentication("123456").uri(uri))
-                .build();
-
-        assertThat(reporter.hawkularClient.getClientInfo().getEndpointUri()).isEqualTo(uri);
-        assertThat(reporter.hawkularClient.getClientInfo().getHeaders()).containsOnly(
-                entry("Authorization", "Bearer 123456"),
-                entry("Hawkular-Tenant", "other-tenant"));
+        response = defaultClient.readMetric("gauges", "prefix-" + metricName);
+        assertThat(response.getResponseCode()).isEqualTo(200);
     }
 
     private static String randomName() {

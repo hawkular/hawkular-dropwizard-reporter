@@ -17,9 +17,7 @@
     limitations under the License.
 
 -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -29,12 +27,18 @@
   </parent>
 
   <groupId>org.hawkular.client</groupId>
-  <artifactId>hawkular-dropwizard-reporter</artifactId>
+  <artifactId>hawkular-dropwizard-reporter-parent</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <packaging>jar</packaging>
+  <packaging>pom</packaging>
 
-  <name>Hawkular Dropwizard Reporter</name>
+  <name>Hawkular Dropwizard Reporter parent POM</name>
   <description>Dropwizard reporter for Hawkular</description>
+
+  <modules>
+    <module>hawkular-dropwizard-reporter</module>
+    <module>hawkular-dropwizard-reporter-factory</module>
+  </modules>
+
   <url>http://www.hawkular.org/</url>
   <inceptionYear>2016</inceptionYear>
   <organization>
@@ -60,48 +64,58 @@
   </ciManagement>
 
   <properties>
-    <dropwizard.version>3.1.2</dropwizard.version>
-    <hawkular-client.version>0.0.2-SNAPSHOT</hawkular-client.version>
+    <glassfish-json.version>1.0.4</glassfish-json.version>
+    <apache-commons-lang3.version>3.3.2</apache-commons-lang3.version>
+    <dropwizard.version>1.0.2</dropwizard.version>
+    <dropwizard-metrics.version>3.1.2</dropwizard-metrics.version>
     <version.org.codehaus.mojo.findbugs-maven-plugin>3.0.0</version.org.codehaus.mojo.findbugs-maven-plugin>
     <version.maven-surefire-report-plugin>2.6</version.maven-surefire-report-plugin>
   </properties>
 
-  <dependencies>
-    <dependency>
-      <groupId>io.dropwizard.metrics</groupId>
-      <artifactId>metrics-core</artifactId>
-      <version>${dropwizard.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.hawkular.client</groupId>
-      <artifactId>hawkular-java-client</artifactId>
-      <version>${hawkular-client.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
-      <version>1.7.19</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.12</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.assertj</groupId>
-      <artifactId>assertj-core</artifactId>
-      <version>3.5.2</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.commons</groupId>
-      <artifactId>commons-lang3</artifactId>
-      <version>3.3.2</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.hawkular.client</groupId>
+        <artifactId>hawkular-dropwizard-reporter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard.metrics</groupId>
+        <artifactId>metrics-core</artifactId>
+        <version>${dropwizard-metrics.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.dropwizard</groupId>
+        <artifactId>dropwizard-metrics</artifactId>
+        <version>${dropwizard.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.glassfish</groupId>
+        <artifactId>javax.json</artifactId>
+        <version>${glassfish-json.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>${apache-commons-lang3.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>1.7.19</version>
+      </dependency>
+      <dependency>
+        <groupId>junit</groupId>
+        <artifactId>junit</artifactId>
+        <version>4.12</version>
+      </dependency>
+      <dependency>
+        <groupId>org.assertj</groupId>
+        <artifactId>assertj-core</artifactId>
+        <version>3.5.2</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <build>
     <pluginManagement>
@@ -165,4 +179,5 @@
     </plugins>
 
   </reporting>
+
 </project>

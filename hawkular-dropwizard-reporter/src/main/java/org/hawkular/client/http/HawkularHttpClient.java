@@ -14,14 +14,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.client.http;
+
+import java.util.Map;
 
 /**
+ * Http client interface for Hawkular, in case someone would like to use other than the default one
  * @author Joel Takvorian
  */
-public enum MetersRate {
-    ONE_MINUTE,
-    FIVE_MINUTES,
-    FIFTEEN_MINUTES,
-    MEAN
+public interface HawkularHttpClient {
+    void addHeaders(Map<String, String> headers);
+    HawkularHttpResponse postMetric(String type, String jsonBody);
 }
