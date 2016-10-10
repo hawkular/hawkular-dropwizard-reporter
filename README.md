@@ -15,7 +15,7 @@ To use the Hawkular Dropwizard Reporter in any Java application:
     </dependency>
 ````
 
-* At some point in your application (generally at startup), create a _DropwizardRegistry_ and a _HawkularReporter_
+* At some point in your application (generally at startup), create a _MetricRegistry_ and a _HawkularReporter_
 
 Example:
 ````
@@ -31,5 +31,26 @@ Example:
         meter.mark();
 ````
 
-For more information about Dropwizard Metrics usage, please refer to the official documentation: http://metrics
-.dropwizard.io/
+For more information about Dropwizard Metrics usage, please refer to the official documentation: http://metrics.dropwizard.io/
+
+## Usage in a Dropwizard application
+
+You can use the Hawkular Dropwizard Reporter in a Dropwizard application by simply editing your app .yml file and 
+configure a reporter of type _hawkular_. For example:
+````
+metrics:
+  reporters:
+    - type: hawkular
+      uri: http://myserver:8081
+      tenant: my-tenant
+````
+
+You must also add a module dependency to hawkular-dropwizard-reporter-factory (note that it is NOT the same module as
+ above):
+````
+    <dependency>
+        <groupId>org.hawkular.client</groupId>
+        <artifactId>hawkular-dropwizard-reporter-factory</artifactId>
+        <version>${version}</version>
+    </dependency>
+````
