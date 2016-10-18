@@ -33,9 +33,23 @@ Example:
 
 For more information about Dropwizard Metrics usage, please refer to the official documentation: http://metrics.dropwizard.io/
 
+### Using another HTTP client
+
+The embedded HTTP client is designed to be as light as possible in terms of JAR dependencies. So, no Apache, no
+Jetty... just a basic JDK URLConnection.
+
+If you want to use a different HTTP client, you would just have to implement the interface `org.hawkular.client.http
+.HawkularHttpClient` and pass an instance to the builder:
+````
+        HawkularReporter reporter = HawkularReporter.builder(registry, "my-tenant")
+                // ...
+                .useHttpClient(uri -> new MyCoolHttpClient(uri))
+                .build();
+````
+
 ## Usage in a Dropwizard application
 
-You can use the Hawkular Dropwizard Reporter in a Dropwizard application by simply editing your app .yml file and 
+You can use the Hawkular Dropwizard Reporter in a Dropwizard application by simply editing your app .yml file and
 configure a reporter of type _hawkular_. For example:
 ````
 metrics:
@@ -54,3 +68,12 @@ You must also add a module dependency to hawkular-dropwizard-reporter-factory (n
         <version>${version}</version>
     </dependency>
 ````
+
+## Usage as an "addthis" plugin in Cassandra
+
+* Copy and edit `sample/hawkular-cassandra-example.yml` to `[cassandra]/conf`
+* Copy the shaded JAR artifact `hawkular-dropwizard-reporter-xxx-shaded.jar` to `[cassandra]/lib`
+* Start Cassandra with `-Dcassandra.metricsReporterConfigFile=hawkular-cassandra-example.yml`
+
+Note: this usage requires a version of the `reporter-config3` JAR, in Cassandra, that is not merged upstream yet. For
+ more information see (insert pull request here)

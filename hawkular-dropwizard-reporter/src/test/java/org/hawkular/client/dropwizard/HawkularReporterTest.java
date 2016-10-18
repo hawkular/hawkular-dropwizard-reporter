@@ -18,6 +18,7 @@ package org.hawkular.client.dropwizard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -53,7 +54,7 @@ public class HawkularReporterTest {
     }
 
     @Test
-    public void shouldReportCounter() {
+    public void shouldReportCounter() throws IOException {
         String metricName = randomName();
         HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
 
@@ -78,7 +79,7 @@ public class HawkularReporterTest {
     }
 
     @Test
-    public void shouldReportGauge() throws InterruptedException {
+    public void shouldReportGauge() throws InterruptedException, IOException {
         String metricName = randomName();
         HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
 
@@ -102,7 +103,7 @@ public class HawkularReporterTest {
     }
 
     @Test
-    public void shouldReportMeter() throws InterruptedException {
+    public void shouldReportMeter() throws InterruptedException, IOException {
         String metricName = randomName();
         HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
 
@@ -130,7 +131,7 @@ public class HawkularReporterTest {
     }
 
     @Test
-    public void shouldReportWithPrefix() {
+    public void shouldReportWithPrefix() throws IOException {
         String metricName = randomName();
         HawkularReporter reporter = HawkularReporter
                 .builder(registry, defaultTenant)

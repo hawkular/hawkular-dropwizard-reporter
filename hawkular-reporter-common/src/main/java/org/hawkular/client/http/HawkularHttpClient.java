@@ -16,6 +16,7 @@
  */
 package org.hawkular.client.http;
 
+import java.io.IOException;
 import java.util.Map;
 
 /**
@@ -24,5 +25,5 @@ import java.util.Map;
  */
 public interface HawkularHttpClient {
     void addHeaders(Map<String, String> headers);
-    HawkularHttpResponse postMetric(String type, String jsonBody);
+    HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException;
 }

@@ -45,24 +45,14 @@ public class JdkHawkularHttpClient implements HawkularHttpClient {
     }
 
     @Override
-    public HawkularHttpResponse postMetric(String type, String jsonBody) {
-        try {
-            URL url = new URL(uri + "/" + type + "/raw");
-            return post(url, jsonBody.getBytes());
-        } catch (IOException e) {
-            // Propagate
-            throw new RuntimeException(e);
-        }
+    public HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException {
+        URL url = new URL(uri + "/" + type + "/raw");
+        return post(url, jsonBody.getBytes());
     }
 
-    public HawkularHttpResponse readMetric(String type, String name) {
-        try {
-            URL url = new URL(uri + "/" + type + "/" + name + "/raw");
-            return get(url);
-        } catch (IOException e) {
-            // Propagate
-            throw new RuntimeException(e);
-        }
+    public HawkularHttpResponse readMetric(String type, String name) throws IOException {
+        URL url = new URL(uri + "/" + type + "/" + name + "/raw");
+        return get(url);
     }
 
     private HawkularHttpResponse post(URL url, byte[] content) throws IOException {
