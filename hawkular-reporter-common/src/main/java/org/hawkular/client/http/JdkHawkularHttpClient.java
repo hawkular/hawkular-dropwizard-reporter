@@ -47,7 +47,13 @@ public class JdkHawkularHttpClient implements HawkularHttpClient {
     @Override
     public HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException {
         URL url = new URL(uri + "/" + type + "/raw");
-        return post(url, jsonBody.getBytes());
+        return send("POST", url, jsonBody.getBytes());
+    }
+
+    @Override
+    public HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException {
+        URL url = new URL(uri + resourcePath);
+        return send("PUT", url, jsonBody.getBytes());
     }
 
     public HawkularHttpResponse readMetric(String type, String name) throws IOException {
@@ -55,7 +61,7 @@ public class JdkHawkularHttpClient implements HawkularHttpClient {
         return get(url);
     }
 
-    private HawkularHttpResponse post(URL url, byte[] content) throws IOException {
+    private HawkularHttpResponse send(String verb, URL url, byte[] content) throws IOException {
         InputStream is = null;
         byte[] data = null;
         int responseCode;
@@ -64,7 +70,7 @@ public class JdkHawkularHttpClient implements HawkularHttpClient {
             final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
             connection.setDoOutput(true);
             connection.setUseCaches(false);
-            connection.setRequestMethod("POST");
+            connection.setRequestMethod(verb);
             connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Content-Length", String.valueOf(content.length));
             headers.forEach(connection::setRequestProperty);

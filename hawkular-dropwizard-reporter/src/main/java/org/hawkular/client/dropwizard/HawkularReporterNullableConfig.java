@@ -14,17 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.http;
+package org.hawkular.client.dropwizard;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
- * Http client interface for Hawkular, in case someone would like to use other than the default one
  * @author Joel Takvorian
  */
-public interface HawkularHttpClient {
-    void addHeaders(Map<String, String> headers);
-    HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException;
-    HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException;
+public interface HawkularReporterNullableConfig {
+    String getUri();
+    String getBearerToken();
+    String getPrefix();
+    Map<String, String> getHeaders();
+    Map<String, String> getGlobalTags();
+    Map<String, Map<String, String>> getPerMetricTags();
+    Long getTagsCacheDuration();
+    Boolean getAutoTagging();
 }

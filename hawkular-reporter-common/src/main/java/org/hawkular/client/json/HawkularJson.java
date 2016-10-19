@@ -17,7 +17,6 @@
 package org.hawkular.client.json;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -52,15 +51,14 @@ public final class HawkularJson {
                 .build();
     }
 
-    public static JsonObject metricJson(Optional<String> prefix, String name, JsonArray dataPoints) {
-        String prefixedName = prefix.map(p -> p + name).orElse(name);
+    public static JsonObject metricJson(String name, JsonArray dataPoints) {
         return Json.createObjectBuilder()
-                .add("id", prefixedName)
+                .add("id", name)
                 .add("dataPoints", dataPoints)
                 .build();
     }
 
-    public static JsonObject metricJson(Optional<String> prefix, String name, JsonObject dataPoint) {
-        return metricJson(prefix, name, Json.createArrayBuilder().add(dataPoint).build());
+    public static JsonObject metricJson(String name, JsonObject dataPoint) {
+        return metricJson(name, Json.createArrayBuilder().add(dataPoint).build());
     }
 }
