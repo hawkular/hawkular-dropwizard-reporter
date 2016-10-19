@@ -75,5 +75,5 @@ You must also add a module dependency to hawkular-dropwizard-reporter-factory (n
 * Copy the shaded JAR artifact `hawkular-dropwizard-reporter-xxx-shaded.jar` to `[cassandra]/lib`
 * Start Cassandra with `-Dcassandra.metricsReporterConfigFile=hawkular-cassandra-example.yml`
 
-Note: this usage requires a version of the `reporter-config3` JAR, in Cassandra, that is not merged upstream yet. For
- more information see (insert pull request here)
+Note: this usage requires a version of the `reporter-config3` JAR, in Cassandra, that is not merged upstream yet. See
+ fork here: https://github.com/jotak/metrics-reporter-config
