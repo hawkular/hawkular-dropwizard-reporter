@@ -16,6 +16,7 @@
  */
 package org.hawkular.client.dropwizard;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -84,6 +85,9 @@ public class HawkularReporterBuilder {
         if (config.getAutoTagging() != null && !config.getAutoTagging()) {
             this.disableAutoTagging();
         }
+        if (config.getUsername() != null && config.getPassword() != null) {
+            this.basicAuth(config.getUsername(), config.getPassword());
+        }
         return this;
     }
 
@@ -93,6 +97,17 @@ public class HawkularReporterBuilder {
      */
     public HawkularReporterBuilder uri(String uri) {
         this.uri = uri;
+        return this;
+    }
+
+    /**
+     * Set username and password for basic HTTP authentication
+     * @param username basic auth. username
+     * @param password basic auth. password
+     */
+    public HawkularReporterBuilder basicAuth(String username, String password) {
+        String encoded = Base64.getEncoder().encodeToString((username + ":" + password).getBytes());
+        headers.put(KEY_HEADER_AUTHORIZATION, "Basic " + encoded);
         return this;
     }
 

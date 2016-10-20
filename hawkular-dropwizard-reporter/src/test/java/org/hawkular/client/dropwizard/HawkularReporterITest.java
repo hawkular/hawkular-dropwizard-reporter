@@ -19,6 +19,7 @@ package org.hawkular.client.dropwizard;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -44,6 +45,9 @@ import com.codahale.metrics.MetricRegistry;
  */
 public class HawkularReporterITest {
 
+    private static final String USERNAME = "jdoe";
+    private static final String PASSWORD = "password";
+
     private final MetricRegistry registry = new MetricRegistry();
     private final String defaultTenant = "unit-test";
     private final JdkHawkularHttpClient defaultClient = new JdkHawkularHttpClient("http://localhost:8080");
@@ -53,12 +57,16 @@ public class HawkularReporterITest {
     @Before
     public void setup() {
         defaultClient.addHeaders(Collections.singletonMap("Hawkular-Tenant", defaultTenant));
+        String encoded = Base64.getEncoder().encodeToString((USERNAME + ":" + PASSWORD).getBytes());
+        defaultClient.addHeaders(Collections.singletonMap("Authorization", "Basic " + encoded));
     }
 
     @Test
     public void shouldReportCounter() throws IOException {
         String metricName = randomName();
-        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .basicAuth(USERNAME, PASSWORD)
+                .build();
 
         final Counter counter = registry.counter(metricName);
         counter.inc(5);
@@ -83,7 +91,9 @@ public class HawkularReporterITest {
     @Test
     public void shouldReportGauge() throws InterruptedException, IOException {
         String metricName = randomName();
-        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .basicAuth(USERNAME, PASSWORD)
+                .build();
 
         final AtomicReference<Double> gauge = new AtomicReference<>(10d);
         registry.register(metricName, (Gauge<Double>) gauge::get);
@@ -107,7 +117,9 @@ public class HawkularReporterITest {
     @Test
     public void shouldReportMeter() throws InterruptedException, IOException {
         String metricName = randomName();
-        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .basicAuth(USERNAME, PASSWORD)
+                .build();
 
         Meter meter = registry.meter(metricName);
         meter.mark(1000);
@@ -135,8 +147,8 @@ public class HawkularReporterITest {
     @Test
     public void shouldReportWithPrefix() throws IOException {
         String metricName = randomName();
-        HawkularReporter reporter = HawkularReporter
-                .builder(registry, defaultTenant)
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .basicAuth(USERNAME, PASSWORD)
                 .prefixedWith("prefix-")
                 .build();
 

@@ -30,4 +30,6 @@ public interface HawkularReporterNullableConfig {
     Map<String, Map<String, String>> getPerMetricTags();
     Long getTagsCacheDuration();
     Boolean getAutoTagging();
+    String getUsername();
+    String getPassword();
 }

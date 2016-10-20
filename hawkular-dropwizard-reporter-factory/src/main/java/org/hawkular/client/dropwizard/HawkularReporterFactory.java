@@ -169,15 +169,11 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
 
     @Override
     public ScheduledReporter build(MetricRegistry registry) {
-        HawkularReporterBuilder builder = HawkularReporter.builder(registry, tenant)
+        return HawkularReporter.builder(registry, tenant)
                 .withNullableConfig(this)
                 .filter(this.getFilter())
                 .convertRatesTo(this.getRateUnit())
-                .convertDurationsTo(this.getDurationUnit());
-        if (username != null && password != null) {
-            // TODO: manage basic auth
-//            builder.basicAuth(username, password);
-        }
-        return builder.build();
+                .convertDurationsTo(this.getDurationUnit())
+                .build();
     }
 }
