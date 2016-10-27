@@ -16,15 +16,61 @@
  */
 package org.hawkular.client.http;
 
+import static org.hawkular.client.json.HawkularJson.doubleDataPoint;
+import static org.hawkular.client.json.HawkularJson.longDataPoint;
+import static org.hawkular.client.json.HawkularJson.metricJson;
+
 import java.io.IOException;
 import java.util.Map;
+
+import javax.json.Json;
+import javax.json.JsonArrayBuilder;
+import javax.json.JsonObjectBuilder;
 
 /**
  * Http client interface for Hawkular, in case someone would like to use other than the default one
  * @author Joel Takvorian
  */
-public interface HawkularHttpClient {
-    void addHeaders(Map<String, String> headers);
-    HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException;
-    HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException;
+public abstract class HawkularHttpClient implements HawkularMetricsPersister {
+
+    public abstract void addHeaders(Map<String, String> headers);
+    public abstract HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException;
+    public abstract HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException;
+
+    @Override
+    public void addProperties(Map<String, String> properties) {
+        addHeaders(properties);
+    }
+
+    @Override
+    public void writeGaugesData(Long timestamp, Map<String, Double> metricsPoints) throws IOException {
+        final JsonArrayBuilder builder = Json.createArrayBuilder();
+        metricsPoints.entrySet().stream()
+                .map(e -> metricJson(e.getKey(), doubleDataPoint(timestamp, e.getValue())))
+                .forEach(builder::add);
+        postMetric("gauges", builder.build().toString());
+    }
+
+    @Override
+    public void writeCountersData(Long timestamp, Map<String, Long> metricsPoints) throws IOException {
+        final JsonArrayBuilder builder = Json.createArrayBuilder();
+        metricsPoints.entrySet().stream()
+                .map(e -> metricJson(e.getKey(), longDataPoint(timestamp, e.getValue())))
+                .forEach(builder::add);
+        postMetric("counters", builder.build().toString());
+    }
+
+    @Override
+    public void writeGaugesTags(String metricId, Map<String, String> tags) throws IOException {
+        JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
+        tags.forEach(jsonObjectBuilder::add);
+        putTags("/gauges/" + metricId + "/tags", jsonObjectBuilder.build().toString());
+    }
+
+    @Override
+    public void writeCountersTags(String metricId, Map<String, String> tags) throws IOException {
+        JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
+        tags.forEach(jsonObjectBuilder::add);
+        putTags("/counters/" + metricId + "/tags", jsonObjectBuilder.build().toString());
+    }
 }

@@ -69,6 +69,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.tenant = tenant;
     }
 
+    @Override
     @JsonProperty
     public String getUsername() {
         return username;
@@ -79,6 +80,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.username = username;
     }
 
+    @Override
     @JsonProperty
     public String getPassword() {
         return password;

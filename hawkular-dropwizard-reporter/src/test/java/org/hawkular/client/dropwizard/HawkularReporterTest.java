@@ -54,7 +54,7 @@ public class HawkularReporterTest {
 
     @Test
     public void shouldReportSimpleCounterWithoutTag() {
-        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test").useHttpClient(uri -> client).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test").useHawkularPersistence(uri -> client).build();
 
         final Counter counter = registry.counter("my.counter");
         counter.inc();
@@ -70,7 +70,7 @@ public class HawkularReporterTest {
     @Test
     public void shouldReportCountersWithTags() {
         HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
-                .useHttpClient(uri -> client)
+                .useHawkularPersistence(uri -> client)
                 .globalTags(Collections.singletonMap("global-tag", "abc"))
                 .perMetricTags(Collections.singletonMap("my.second.counter",
                         Collections.singletonMap("metric-tag", "def")))
@@ -94,7 +94,7 @@ public class HawkularReporterTest {
 
     @Test
     public void shouldReportHistogram() {
-        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test").useHttpClient(uri -> client).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test").useHawkularPersistence(uri -> client).build();
 
         final Histogram histogram = registry.histogram("my.histogram");
         histogram.update(3);
@@ -128,6 +128,8 @@ public class HawkularReporterTest {
         assertThat(client.getPostedTags()).containsOnly(
                 Pair.of("/counters/my.histogram.count/tags", "{\"histogram\":\"count\"}"),
                 Pair.of("/gauges/my.histogram.mean/tags", "{\"histogram\":\"mean\"}"),
+                Pair.of("/gauges/my.histogram.min/tags", "{\"histogram\":\"min\"}"),
+                Pair.of("/gauges/my.histogram.max/tags", "{\"histogram\":\"max\"}"),
                 Pair.of("/gauges/my.histogram.stddev/tags", "{\"histogram\":\"stddev\"}"),
                 Pair.of("/gauges/my.histogram.median/tags", "{\"histogram\":\"median\"}"),
                 Pair.of("/gauges/my.histogram.75perc/tags", "{\"histogram\":\"75perc\"}"),
@@ -137,7 +139,7 @@ public class HawkularReporterTest {
                 Pair.of("/gauges/my.histogram.999perc/tags", "{\"histogram\":\"999perc\"}"));
     }
 
-    private static class HttpClientMock implements HawkularHttpClient {
+    private static class HttpClientMock extends HawkularHttpClient {
         private List<Pair<String, String>> postedMetrics = new ArrayList<>();
         private List<Pair<String, String>> postedTags = new ArrayList<>();
 

@@ -30,7 +30,7 @@ import java.util.Map;
  * This class does not aim to be any generic. It's very tied to what is needed for the dropwizard reporter.
  * @author Joel Takvorian
  */
-public class JdkHawkularHttpClient implements HawkularHttpClient {
+public class JdkHawkularHttpClient extends HawkularHttpClient {
 
     private final String uri;
     private final Map<String, String> headers = new HashMap<>();
