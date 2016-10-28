@@ -14,12 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
-import static org.hawkular.client.json.HawkularJson.bigdDataPoint;
-import static org.hawkular.client.json.HawkularJson.doubleDataPoint;
-import static org.hawkular.client.json.HawkularJson.longDataPoint;
-import static org.hawkular.client.json.HawkularJson.metricJson;
+import static org.hawkular.metrics.reporter.http.HawkularJson.bigdDataPoint;
+import static org.hawkular.metrics.reporter.http.HawkularJson.doubleDataPoint;
+import static org.hawkular.metrics.reporter.http.HawkularJson.longDataPoint;
+import static org.hawkular.metrics.reporter.http.HawkularJson.metricJson;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -35,7 +35,7 @@ import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
-import org.hawkular.client.http.HawkularHttpClient;
+import org.hawkular.metrics.reporter.http.HawkularHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

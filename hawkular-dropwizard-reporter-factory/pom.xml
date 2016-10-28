@@ -23,7 +23,7 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.hawkular.client</groupId>
+    <groupId>org.hawkular.metrics</groupId>
     <artifactId>hawkular-dropwizard-reporter-parent</artifactId>
     <version>0.1.0-SNAPSHOT</version>
   </parent>
@@ -36,7 +36,7 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.hawkular.client</groupId>
+      <groupId>org.hawkular.metrics</groupId>
       <artifactId>hawkular-dropwizard-reporter</artifactId>
     </dependency>
     <dependency>
