@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -26,7 +26,7 @@ import java.util.Optional;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
-import org.hawkular.client.http.HawkularMetricsPersister;
+import org.hawkular.metrics.reporter.persister.HawkularMetricsPersister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

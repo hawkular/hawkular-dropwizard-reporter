@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -30,8 +30,8 @@ import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.assertj.core.api.iterable.Extractor;
-import org.hawkular.client.http.HawkularHttpClient;
-import org.hawkular.client.http.HawkularHttpResponse;
+import org.hawkular.metrics.reporter.http.HawkularHttpClient;
+import org.hawkular.metrics.reporter.http.HawkularHttpResponse;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
@@ -54,7 +54,9 @@ public class HawkularReporterTest {
 
     @Test
     public void shouldReportSimpleCounterWithoutTag() {
-        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test").useHawkularPersistence(uri -> client).build();
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHawkularPersistence(uri -> client)
+                .build();
 
         final Counter counter = registry.counter("my.counter");
         counter.inc();

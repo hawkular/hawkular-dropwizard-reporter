@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.json;
-
-import java.math.BigDecimal;
+package org.hawkular.metrics.reporter.http;
 
 import javax.json.Json;
 import javax.json.JsonArray;
@@ -25,40 +23,33 @@ import javax.json.JsonObject;
 /**
  * @author Joel Takvorian
  */
-public final class HawkularJson {
+final class HawkularJson {
 
     private HawkularJson() {
     }
 
-    public static JsonObject bigdDataPoint(long timestamp, BigDecimal value) {
+    static JsonObject doubleDataPoint(long timestamp, double value) {
         return Json.createObjectBuilder()
                 .add("timestamp", timestamp)
                 .add("value", value)
                 .build();
     }
 
-    public static JsonObject doubleDataPoint(long timestamp, double value) {
+    static JsonObject longDataPoint(long timestamp, long value) {
         return Json.createObjectBuilder()
                 .add("timestamp", timestamp)
                 .add("value", value)
                 .build();
     }
 
-    public static JsonObject longDataPoint(long timestamp, long value) {
-        return Json.createObjectBuilder()
-                .add("timestamp", timestamp)
-                .add("value", value)
-                .build();
-    }
-
-    public static JsonObject metricJson(String name, JsonArray dataPoints) {
+    static JsonObject metricJson(String name, JsonArray dataPoints) {
         return Json.createObjectBuilder()
                 .add("id", name)
                 .add("dataPoints", dataPoints)
                 .build();
     }
 
-    public static JsonObject metricJson(String name, JsonObject dataPoint) {
+    static JsonObject metricJson(String name, JsonObject dataPoint) {
         return metricJson(name, Json.createArrayBuilder().add(dataPoint).build());
     }
 }

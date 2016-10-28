@@ -14,11 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.http;
+package org.hawkular.metrics.reporter.http;
 
-import static org.hawkular.client.json.HawkularJson.doubleDataPoint;
-import static org.hawkular.client.json.HawkularJson.longDataPoint;
-import static org.hawkular.client.json.HawkularJson.metricJson;
+import static org.hawkular.metrics.reporter.http.HawkularJson.doubleDataPoint;
+import static org.hawkular.metrics.reporter.http.HawkularJson.longDataPoint;
+import static org.hawkular.metrics.reporter.http.HawkularJson.metricJson;
 
 import java.io.IOException;
 import java.util.Map;
@@ -26,6 +26,8 @@ import java.util.Map;
 import javax.json.Json;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObjectBuilder;
+
+import org.hawkular.metrics.reporter.persister.HawkularMetricsPersister;
 
 /**
  * Http client interface for Hawkular, in case someone would like to use other than the default one

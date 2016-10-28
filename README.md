@@ -6,10 +6,10 @@ To use the Hawkular Dropwizard Reporter in any Java application:
 
 * Pre-requisite: you must have a running instance of Hawkular Services or Hawkular Metrics. For more information see http://www.hawkular.org/
 
-* Add a dependency to artifact _org.hawkular.client:hawkular-dropwizard-reporter_. Example with maven:
+* Add a dependency to artifact _org.hawkular.metrics:hawkular-dropwizard-reporter_. Example with maven:
 ````
     <dependency>
-        <groupId>org.hawkular.client</groupId>
+        <groupId>org.hawkular.metrics</groupId>
         <artifactId>hawkular-dropwizard-reporter</artifactId>
         <version>${version}</version>
     </dependency>
@@ -38,8 +38,7 @@ For more information about Dropwizard Metrics usage, please refer to the officia
 The embedded HTTP client is designed to be as light as possible in terms of JAR dependencies. So, no Apache, no
 Jetty... just a basic JDK URLConnection.
 
-If you want to use a different HTTP client, you would just have to implement the interface `org.hawkular.client.http
-.HawkularHttpClient` and pass an instance to the builder:
+If you want to use a different HTTP client, you would just have to implement the interface `HawkularHttpClient` and pass an instance to the builder:
 ````
         HawkularReporter reporter = HawkularReporter.builder(registry, "my-tenant")
                 // ...
@@ -63,7 +62,7 @@ You must also add a module dependency to hawkular-dropwizard-reporter-factory (n
  above):
 ````
     <dependency>
-        <groupId>org.hawkular.client</groupId>
+        <groupId>org.hawkular.metrics</groupId>
         <artifactId>hawkular-dropwizard-reporter-factory</artifactId>
         <version>${version}</version>
     </dependency>

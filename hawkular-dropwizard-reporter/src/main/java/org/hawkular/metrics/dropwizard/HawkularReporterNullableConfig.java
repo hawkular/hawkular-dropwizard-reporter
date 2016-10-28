@@ -14,19 +14,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.http;
+package org.hawkular.metrics.dropwizard;
 
-import java.io.IOException;
 import java.util.Map;
 
 /**
- * Persister interface for Hawkular Metrics (Could be Http client, or straightly itnegrated hawkular service)
  * @author Joel Takvorian
  */
-public interface HawkularMetricsPersister {
-    void writeGaugesData(Long timestamp, Map<String, Double> metricsPoints) throws IOException;
-    void writeCountersData(Long timestamp, Map<String, Long> metricsPoints) throws IOException;
-    void writeGaugesTags(String metricId, Map<String, String> tags) throws IOException;
-    void writeCountersTags(String metricId, Map<String, String> tags) throws IOException;
-    void addProperties(Map<String, String> properties);
+public interface HawkularReporterNullableConfig {
+    String getUri();
+    String getBearerToken();
+    String getPrefix();
+    Map<String, String> getHeaders();
+    Map<String, String> getGlobalTags();
+    Map<String, Map<String, String>> getPerMetricTags();
+    Long getTagsCacheDuration();
+    Boolean getAutoTagging();
+    String getUsername();
+    String getPassword();
 }

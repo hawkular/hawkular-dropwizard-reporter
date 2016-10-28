@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -23,8 +23,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.hawkular.client.http.HawkularMetricsPersister;
-import org.hawkular.client.http.JdkHawkularHttpClient;
+import org.hawkular.metrics.reporter.http.JdkHawkularHttpClient;
+import org.hawkular.metrics.reporter.persister.HawkularMetricsPersister;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
