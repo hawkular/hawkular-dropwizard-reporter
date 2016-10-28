@@ -28,3 +28,4 @@ public interface HawkularHttpClient {
     HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException;
     HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException;
 }
+
