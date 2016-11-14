@@ -18,6 +18,17 @@
 hawkular:
   -
     tenant: cassandra-example
+#    prefix: 'some.prefix.'
+#    headers:
+#      header-key: 'header-value'
+#    globalTags:
+#      tag1: 'v1'
+#    perMetricTags:
+#      org.apache.cassandra.metrics.Storage.Exceptions:
+#        type: 'exceptions'
+#      org.apache.cassandra.metrics.Cache.Hits.KeyCache.count:
+#        type: 'cache'
+    autoTagging: false
     period: 10
     timeunit: 'SECONDS'
     predicate:

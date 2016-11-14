@@ -16,9 +16,9 @@
  */
 package org.hawkular.client.dropwizard;
 
-import javax.validation.constraints.NotNull;
+import java.util.Map;
 
-import org.hibernate.validator.constraints.NotEmpty;
+import javax.validation.constraints.NotNull;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
@@ -31,19 +31,24 @@ import io.dropwizard.metrics.BaseReporterFactory;
  * @author Joel Takvorian
  */
 @JsonTypeName("hawkular")
-public class HawkularReporterFactory extends BaseReporterFactory {
-    @NotEmpty
-    private String uri = "http://localhost:8080";
+public class HawkularReporterFactory extends BaseReporterFactory implements HawkularReporterNullableConfig {
     @NotNull
     private String tenant;
+    private String uri;
     private String prefix;
     private String username;
     private String password;
     private String bearerToken;
+    private Map<String, String> headers;
+    private Map<String, String> globalTags;
+    private Map<String, Map<String, String>> perMetricTags;
+    private Long tagsCacheDuration;
+    private Boolean autoTagging;
 
     public HawkularReporterFactory() {
     }
 
+    @Override
     @JsonProperty
     public String getUri() {
         return uri;
@@ -84,6 +89,7 @@ public class HawkularReporterFactory extends BaseReporterFactory {
         this.password = password;
     }
 
+    @Override
     @JsonProperty
     public String getBearerToken() {
         return bearerToken;
@@ -94,6 +100,7 @@ public class HawkularReporterFactory extends BaseReporterFactory {
         this.bearerToken = bearerToken;
     }
 
+    @Override
     @JsonProperty
     public String getPrefix() {
         return this.prefix;
@@ -104,22 +111,69 @@ public class HawkularReporterFactory extends BaseReporterFactory {
         this.prefix = prefix;
     }
 
+    @Override
+    @JsonProperty
+    public Map<String, String> getHeaders() {
+        return headers;
+    }
+
+    @JsonProperty
+    public void setHeaders(Map<String, String> headers) {
+        this.headers = headers;
+    }
+
+    @Override
+    @JsonProperty
+    public Map<String, String> getGlobalTags() {
+        return globalTags;
+    }
+
+    @JsonProperty
+    public void setGlobalTags(Map<String, String> globalTags) {
+        this.globalTags = globalTags;
+    }
+
+    @Override
+    @JsonProperty
+    public Map<String, Map<String, String>> getPerMetricTags() {
+        return perMetricTags;
+    }
+
+    @JsonProperty
+    public void setPerMetricTags(
+            Map<String, Map<String, String>> perMetricTags) {
+        this.perMetricTags = perMetricTags;
+    }
+
+    @Override
+    @JsonProperty
+    public Long getTagsCacheDuration() {
+        return tagsCacheDuration;
+    }
+
+    @JsonProperty
+    public void setTagsCacheDuration(Long tagsCacheDuration) {
+        this.tagsCacheDuration = tagsCacheDuration;
+    }
+
+    @Override
+    @JsonProperty
+    public Boolean getAutoTagging() {
+        return autoTagging;
+    }
+
+    @JsonProperty
+    public void setAutoTagging(Boolean autoTagging) {
+        this.autoTagging = autoTagging;
+    }
+
+    @Override
     public ScheduledReporter build(MetricRegistry registry) {
-        HawkularReporterBuilder builder = HawkularReporter.builder(registry, tenant)
+        return HawkularReporter.builder(registry, tenant)
+                .withNullableConfig(this)
                 .filter(this.getFilter())
                 .convertRatesTo(this.getRateUnit())
                 .convertDurationsTo(this.getDurationUnit())
-                .uri(uri);
-        if (prefix != null) {
-            builder.prefixedWith(prefix);
-        }
-        if (username != null && password != null) {
-            // TODO: manage basic auth
-//            builder.basicAuth(username, password);
-        }
-        if (bearerToken != null) {
-            builder.bearerToken(bearerToken);
-        }
-        return builder.build();
+                .build();
     }
 }
