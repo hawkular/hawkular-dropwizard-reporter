@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import java.util.Map;
 
@@ -69,6 +69,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.tenant = tenant;
     }
 
+    @Override
     @JsonProperty
     public String getUsername() {
         return username;
@@ -79,6 +80,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.username = username;
     }
 
+    @Override
     @JsonProperty
     public String getPassword() {
         return password;

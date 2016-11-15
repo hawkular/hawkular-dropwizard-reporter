@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -23,8 +23,8 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
-import org.hawkular.client.http.HawkularHttpClient;
-import org.hawkular.client.http.JdkHawkularHttpClient;
+import org.hawkular.metrics.reporter.http.JdkHawkularHttpClient;
+import org.hawkular.metrics.reporter.persister.HawkularMetricsPersister;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
@@ -41,7 +41,7 @@ public class HawkularReporterBuilder {
     private MetricFilter filter = MetricFilter.ALL;
     private TimeUnit rateUnit = TimeUnit.SECONDS;
     private TimeUnit durationUnit = TimeUnit.MILLISECONDS;
-    private Optional<Function<String, HawkularHttpClient>> httpClientProvider = Optional.empty();
+    private Optional<Function<String, HawkularMetricsPersister>> persistenceProvider = Optional.empty();
     private final Map<String, String> globalTags = new HashMap<>();
     private final Map<String, Map<String, String>> perMetricTags = new HashMap<>();
     private long tagsCacheDuration = 1000 * 60 * 10; // In milliseconds; default: 10min
@@ -256,11 +256,12 @@ public class HawkularReporterBuilder {
     }
 
     /**
-     * Use a custom {@link HawkularHttpClient}
-     * @param httpClientProvider function that provides a custom {@link HawkularHttpClient} from input URI as String
+     * Use a custom {@link HawkularMetricsPersister}
+     * @param persistenceProvider function that provides a custom {@link HawkularMetricsPersister} from input URI as String
      */
-    public HawkularReporterBuilder useHttpClient(Function<String, HawkularHttpClient> httpClientProvider) {
-        this.httpClientProvider = Optional.of(httpClientProvider);
+    public HawkularReporterBuilder useHawkularPersistence(Function<String, HawkularMetricsPersister>
+                                                                  persistenceProvider) {
+        this.persistenceProvider = Optional.of(persistenceProvider);
         return this;
     }
 
@@ -268,11 +269,11 @@ public class HawkularReporterBuilder {
      * Build the {@link HawkularReporter}
      */
     public HawkularReporter build() {
-        HawkularHttpClient client = httpClientProvider
+        HawkularMetricsPersister persister = persistenceProvider
                 .map(provider -> provider.apply(uri))
                 .orElseGet(() -> new JdkHawkularHttpClient(uri));
-        client.addHeaders(headers);
-        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, tagsCacheDuration,
+        persister.addProperties(headers);
+        return new HawkularReporter(registry, persister, prefix, globalTags, perMetricTags, tagsCacheDuration,
                 enableAutoTagging, rateUnit, durationUnit, filter);
     }
 }

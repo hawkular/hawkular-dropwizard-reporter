@@ -14,28 +14,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
-
-import static org.hawkular.client.json.HawkularJson.bigdDataPoint;
-import static org.hawkular.client.json.HawkularJson.doubleDataPoint;
-import static org.hawkular.client.json.HawkularJson.longDataPoint;
-import static org.hawkular.client.json.HawkularJson.metricJson;
+package org.hawkular.metrics.dropwizard;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
-import javax.json.Json;
-import javax.json.JsonArrayBuilder;
-import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-
-import org.hawkular.client.http.HawkularHttpClient;
+import org.hawkular.metrics.reporter.persister.HawkularMetricsPersister;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,21 +52,22 @@ public class HawkularReporter extends ScheduledReporter {
 
     private final Optional<String> prefix;
     private final Clock clock;
-    private final HawkularHttpClient hawkularClient;
+    private final HawkularMetricsPersister hawkularPersister;
     private final Map<String, String> globalTags;
     private final Map<String, Map<String, String>> perMetricTags;
     private final Map<String, Long> taggedMetricsCache = new HashMap<>();
     private final long tagsCacheDuration;
     private final boolean enableAutoTagging;
 
-    HawkularReporter(MetricRegistry registry, HawkularHttpClient hawkularClient, Optional<String> prefix, Map<String,
-            String> globalTags, Map<String, Map<String, String>> perMetricTags, long tagsCacheDuration, boolean
-            enableAutoTagging, TimeUnit rateUnit, TimeUnit durationUnit, MetricFilter filter) {
+    HawkularReporter(MetricRegistry registry, HawkularMetricsPersister hawkularPersister, Optional<String> prefix,
+                     Map<String, String> globalTags, Map<String, Map<String, String>> perMetricTags, long
+                             tagsCacheDuration, boolean enableAutoTagging, TimeUnit rateUnit, TimeUnit durationUnit,
+                     MetricFilter filter) {
         super(registry, "hawkular-reporter", filter, rateUnit, durationUnit);
 
         this.prefix = prefix;
         this.clock = Clock.defaultClock();
-        this.hawkularClient = hawkularClient;
+        this.hawkularPersister = hawkularPersister;
         this.globalTags = globalTags;
         this.perMetricTags = perMetricTags;
         this.tagsCacheDuration = tagsCacheDuration;
@@ -95,24 +87,33 @@ public class HawkularReporter extends ScheduledReporter {
 
         final long timestamp = clock.getTime();
 
-        JsonBuilder builder = new JsonBuilder(timestamp);
-        processGauges(builder, gauges);
-        processCounters(builder, counters);
-        processMeters(builder, meters);
-        processHistograms(builder, histograms);
-        processTimers(builder, timers);
+        DataAccumulator accu = new DataAccumulator(timestamp);
+        processGauges(accu, gauges);
+        processCounters(accu, counters);
+        processMeters(accu, meters);
+        processHistograms(accu, histograms);
+        processTimers(accu, timers);
 
-        builder.getMetricsMap().forEach((type, arrayBuilder) -> {
+        try {
+            if (!accu.getCounters().isEmpty()) {
+                hawkularPersister.writeCountersData(timestamp, accu.getCounters());
+            }
+            if (!accu.getGauges().isEmpty()) {
+                hawkularPersister.writeGaugesData(timestamp, accu.getGauges());
+            }
+        } catch (IOException e) {
+            LOG.error("Could not post metrics data", e);
+        }
+        accu.getCountersTags().forEach((metricId, tags) -> {
             try {
-                hawkularClient.postMetric(type, arrayBuilder.build().toString());
+                hawkularPersister.writeCountersTags(metricId, tags);
             } catch (IOException e) {
-                LOG.error("Could not post metric data", e);
+                LOG.error("Could not post tags data", e);
             }
         });
-
-        builder.getTagsMap().forEach((resourcePath, jsonObject) -> {
+        accu.getGaugesTags().forEach((metricId, tags) -> {
             try {
-                hawkularClient.putTags(resourcePath, jsonObject.toString());
+                hawkularPersister.writeGaugesTags(metricId, tags);
             } catch (IOException e) {
                 LOG.error("Could not post tags data", e);
             }
@@ -122,33 +123,33 @@ public class HawkularReporter extends ScheduledReporter {
         evictFromCache(timestamp);
     }
 
-    private static void processGauges(JsonBuilder builder, Map<String, Gauge> gauges) {
+    private static void processGauges(DataAccumulator builder, Map<String, Gauge> gauges) {
         for (Map.Entry<String, Gauge> e : gauges.entrySet()) {
             builder.addGauge(e.getKey(), e.getValue().getValue());
         }
     }
 
-    private static void processCounters(JsonBuilder builder, Map<String, Counter> counters) {
+    private static void processCounters(DataAccumulator builder, Map<String, Counter> counters) {
         for (Map.Entry<String, Counter> e : counters.entrySet()) {
             builder.addCounter(e.getKey(), e.getValue().getCount());
         }
     }
 
-    private static void processMeters(JsonBuilder builder, Map<String, Meter> meters) {
+    private static void processMeters(DataAccumulator builder, Map<String, Meter> meters) {
         for (Map.Entry<String, Meter> e : meters.entrySet()) {
             processCounting(builder, e.getKey(), e.getValue(), "meter");
             processMetered(builder, e.getKey(), e.getValue(), "meter");
         }
     }
 
-    private static void processHistograms(JsonBuilder builder, Map<String, Histogram> histograms) {
+    private static void processHistograms(DataAccumulator builder, Map<String, Histogram> histograms) {
         for (Map.Entry<String, Histogram> e : histograms.entrySet()) {
             processCounting(builder, e.getKey(), e.getValue(), "histogram");
             processSampling(builder, e.getKey(), e.getValue(), "histogram");
         }
     }
 
-    private static void processTimers(JsonBuilder builder, Map<String, Timer> timers) {
+    private static void processTimers(DataAccumulator builder, Map<String, Timer> timers) {
         for (Map.Entry<String, Timer> e : timers.entrySet()) {
             processCounting(builder, e.getKey(), e.getValue(), "timer");
             processMetered(builder, e.getKey(), e.getValue(), "timer");
@@ -156,28 +157,28 @@ public class HawkularReporter extends ScheduledReporter {
         }
     }
 
-    private static void processCounting(JsonBuilder builder, String name, Counting counting, String subKey) {
+    private static void processCounting(DataAccumulator builder, String name, Counting counting, String subKey) {
         builder.addSubCounter(name, counting.getCount(), subKey, "count");
     }
 
-    private static void processMetered(JsonBuilder builder, String name, Metered metered, String subKey) {
+    private static void processMetered(DataAccumulator builder, String name, Metered metered, String subKey) {
         builder.addSubGauge(name, metered.getOneMinuteRate(), subKey, "1min")
-            .addSubGauge(name, metered.getFiveMinuteRate(), subKey, "5min")
-            .addSubGauge(name, metered.getFifteenMinuteRate(), subKey, "15min")
-            .addSubGauge(name, metered.getMeanRate(), subKey, "mean");
+                .addSubGauge(name, metered.getFiveMinuteRate(), subKey, "5min")
+                .addSubGauge(name, metered.getFifteenMinuteRate(), subKey, "15min")
+                .addSubGauge(name, metered.getMeanRate(), subKey, "mean");
     }
 
-    private static void processSampling(JsonBuilder builder, String name, Sampling sampling, String subKey) {
+    private static void processSampling(DataAccumulator builder, String name, Sampling sampling, String subKey) {
         builder.addSubGauge(name, sampling.getSnapshot().getMin(), subKey, "min")
-            .addSubGauge(name, sampling.getSnapshot().getMax(), subKey, "max")
-            .addSubGauge(name, sampling.getSnapshot().getMean(), subKey, "mean")
-            .addSubGauge(name, sampling.getSnapshot().getMedian(), subKey, "median")
-            .addSubGauge(name, sampling.getSnapshot().getStdDev(), subKey, "stddev")
-            .addSubGauge(name, sampling.getSnapshot().get75thPercentile(), subKey, "75perc")
-            .addSubGauge(name, sampling.getSnapshot().get95thPercentile(), subKey, "95perc")
-            .addSubGauge(name, sampling.getSnapshot().get98thPercentile(), subKey, "98perc")
-            .addSubGauge(name, sampling.getSnapshot().get99thPercentile(), subKey, "99perc")
-            .addSubGauge(name, sampling.getSnapshot().get999thPercentile(), subKey, "999perc");
+                .addSubGauge(name, sampling.getSnapshot().getMax(), subKey, "max")
+                .addSubGauge(name, sampling.getSnapshot().getMean(), subKey, "mean")
+                .addSubGauge(name, sampling.getSnapshot().getMedian(), subKey, "median")
+                .addSubGauge(name, sampling.getSnapshot().getStdDev(), subKey, "stddev")
+                .addSubGauge(name, sampling.getSnapshot().get75thPercentile(), subKey, "75perc")
+                .addSubGauge(name, sampling.getSnapshot().get95thPercentile(), subKey, "95perc")
+                .addSubGauge(name, sampling.getSnapshot().get98thPercentile(), subKey, "98perc")
+                .addSubGauge(name, sampling.getSnapshot().get99thPercentile(), subKey, "99perc")
+                .addSubGauge(name, sampling.getSnapshot().get999thPercentile(), subKey, "999perc");
     }
 
     private void evictFromCache(long now) {
@@ -189,8 +190,8 @@ public class HawkularReporter extends ScheduledReporter {
         return prefix;
     }
 
-    public HawkularHttpClient getHawkularClient() {
-        return hawkularClient;
+    public HawkularMetricsPersister getHawkularPersister() {
+        return hawkularPersister;
     }
 
     public Map<String, String> getGlobalTags() {
@@ -215,90 +216,98 @@ public class HawkularReporter extends ScheduledReporter {
 
     /**
      * Create a new builder for an {@link HawkularReporter}
+     *
      * @param registry the Dropwizard Metrics registry
-     * @param tenant the Hawkular tenant ID
+     * @param tenant   the Hawkular tenant ID
      */
     public static HawkularReporterBuilder builder(MetricRegistry registry, String tenant) {
         return new HawkularReporterBuilder(registry, tenant);
     }
 
-    private class JsonBuilder {
+    private class DataAccumulator {
         private final long timestamp;
-        private Map<String, JsonArrayBuilder> metricsMap = new HashMap<>();
-        private Map<String, JsonObject> tagsMap = new HashMap<>();
+        private Map<String, Double> gauges = new HashMap<>();
+        private Map<String, Long> counters = new HashMap<>();
+        private Map<String, Map<String, String>> gaugesTags = new HashMap<>();
+        private Map<String, Map<String, String>> countersTags = new HashMap<>();
 
-        private JsonBuilder(long timestamp) {
+        private DataAccumulator(long timestamp) {
             this.timestamp = timestamp;
         }
 
-        private JsonBuilder addCounter(String name, long l) {
-            _add("counters", name, longDataPoint(timestamp, l), new HashMap<>());
-            return this;
+        private Map<String, Double> getGauges() {
+            return gauges;
         }
 
-        private JsonBuilder addGauge(String name, Object value) {
-            if (value instanceof BigDecimal) {
-                _add("gauges", name, bigdDataPoint(timestamp, (BigDecimal) value), new HashMap<>());
-            } else if (value != null && value.getClass().isAssignableFrom(Double.class)
-                    && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
-                _add("gauges", name, doubleDataPoint(timestamp, (Double) value), new HashMap<>());
-            }
-            return this;
+        private Map<String, Long> getCounters() {
+            return counters;
         }
 
-        private JsonBuilder addSubCounter(String name, long l, String subKey, String subValue) {
-            _add("counters", name + "." + subValue, longDataPoint(timestamp, l), Collections.singletonMap(subKey, subValue));
-            return this;
+        private Map<String, Map<String, String>> getGaugesTags() {
+            return gaugesTags;
         }
 
-        private JsonBuilder addSubGauge(String name, Object value, String subKey, String subValue) {
-            if (value instanceof BigDecimal) {
-                _add("gauges", name + "." + subValue, bigdDataPoint(timestamp, (BigDecimal) value),
-                        Collections.singletonMap(subKey, subValue));
-            } else if (value != null && value.getClass().isAssignableFrom(Double.class)
-                    && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
-                _add("gauges", name + "." + subValue, doubleDataPoint(timestamp, (Double) value),
-                        Collections.singletonMap(subKey, subValue));
-            }
-            return this;
+        private Map<String, Map<String, String>> getCountersTags() {
+            return countersTags;
         }
 
-        private void _add(String type, String name, JsonObject dataPoint, Map<String, String> autoTags) {
-            final JsonArrayBuilder metrics;
-            if (metricsMap.containsKey(type)) {
-                metrics = metricsMap.get(type);
-            } else {
-                metrics = Json.createArrayBuilder();
-                metricsMap.put(type, metrics);
-            }
+        private DataAccumulator addCounter(String name, long l) {
             String fullName = prefix.map(p -> p + name).orElse(name);
-            metrics.add(metricJson(fullName, dataPoint));
+            counters.put(fullName, l);
+            addTags(countersTags, fullName, name, new HashMap<>());
+            return this;
+        }
 
+        private DataAccumulator addGauge(String name, Object value) {
+            String fullName = prefix.map(p -> p + name).orElse(name);
+            if (value instanceof BigDecimal) {
+                gauges.put(fullName, ((BigDecimal) value).doubleValue());
+            } else if (value != null && value.getClass().isAssignableFrom(Double.class)
+                    && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
+                gauges.put(fullName, (Double) value);
+            }
+            addTags(gaugesTags, fullName, name, new HashMap<>());
+            return this;
+        }
+
+        private DataAccumulator addSubCounter(String baseName, long l, String subKey, String subValue) {
+            String name = baseName + "." + subValue;
+            String fullName = prefix.map(p -> p + name).orElse(name);
+            counters.put(fullName, l);
+            addTags(countersTags, fullName, name, Collections.singletonMap(subKey, subValue));
+            return this;
+        }
+
+        private DataAccumulator addSubGauge(String baseName, Object value, String subKey, String subValue) {
+            String name = baseName + "." + subValue;
+            String fullName = prefix.map(p -> p + name).orElse(name);
+            if (value instanceof BigDecimal) {
+                gauges.put(fullName, ((BigDecimal) value).doubleValue());
+            } else if (value != null && value.getClass().isAssignableFrom(Double.class)
+                    && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
+                gauges.put(fullName, (Double) value);
+            }
+            addTags(gaugesTags, fullName, name, Collections.singletonMap(subKey, subValue));
+            return this;
+        }
+
+        private void addTags(Map<String, Map<String, String>> accuMap, String fullName, String shortName, Map<String,
+                String> autoTags) {
             // Check tags; don't tag a metric that has already been tagged
             if (!taggedMetricsCache.containsKey(fullName)) {
                 taggedMetricsCache.put(fullName, timestamp);
-                JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
-                globalTags.forEach(jsonObjectBuilder::add);
+                Map<String, String> metricTags = new LinkedHashMap<>(globalTags);
                 if (enableAutoTagging) {
-                    autoTags.forEach(jsonObjectBuilder::add);
+                    metricTags.putAll(autoTags);
                 }
                 // Don't use prefixed name for per-metric tagging
-                if (perMetricTags.containsKey(name)) {
-                    perMetricTags.get(name).forEach(jsonObjectBuilder::add);
+                if (perMetricTags.containsKey(shortName)) {
+                    metricTags.putAll(perMetricTags.get(shortName));
                 }
-                JsonObject tags = jsonObjectBuilder.build();
-                if (!tags.isEmpty()) {
-                    tagsMap.put("/" + type + "/" + fullName + "/tags", tags);
+                if (!metricTags.isEmpty()) {
+                    accuMap.put(fullName, metricTags);
                 }
             }
-        }
-
-        private Map<String,JsonArrayBuilder> getMetricsMap() {
-            return metricsMap;
-        }
-
-        private Map<String, JsonObject> getTagsMap() {
-            return tagsMap;
         }
     }
 }

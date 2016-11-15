@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.http;
+package org.hawkular.metrics.reporter.http;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,7 +30,7 @@ import java.util.Map;
  * This class does not aim to be any generic. It's very tied to what is needed for the dropwizard reporter.
  * @author Joel Takvorian
  */
-public class JdkHawkularHttpClient implements HawkularHttpClient {
+public class JdkHawkularHttpClient extends HawkularHttpClient {
 
     private final String uri;
     private final Map<String, String> headers = new HashMap<>();
