@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.hawkular.client.dropwizard;
+package org.hawkular.metrics.dropwizard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,8 +26,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.assertj.core.api.iterable.Extractor;
 import org.assertj.core.util.DoubleComparator;
-import org.hawkular.client.http.HawkularHttpResponse;
-import org.hawkular.client.http.JdkHawkularHttpClient;
+import org.hawkular.metrics.reporter.http.HawkularHttpResponse;
+import org.hawkular.metrics.reporter.http.JdkHawkularHttpClient;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Before;
