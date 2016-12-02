@@ -37,7 +37,7 @@
   <dependencies>
     <dependency>
       <groupId>org.hawkular.metrics</groupId>
-      <artifactId>hawkular-reporter-common</artifactId>
+      <artifactId>hawkular-dropwizard-reporter-common</artifactId>
     </dependency>
     <dependency>
       <groupId>io.dropwizard.metrics</groupId>
