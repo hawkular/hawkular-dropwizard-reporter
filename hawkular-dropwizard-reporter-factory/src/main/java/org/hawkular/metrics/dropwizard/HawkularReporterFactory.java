@@ -42,7 +42,6 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     private Map<String, String> headers;
     private Map<String, String> globalTags;
     private Map<String, Map<String, String>> perMetricTags;
-    private Long tagsCacheDuration;
     private Boolean autoTagging;
 
     public HawkularReporterFactory() {
@@ -69,7 +68,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.tenant = tenant;
     }
 
-    @JsonProperty
+    @Override @JsonProperty
     public String getUsername() {
         return username;
     }
@@ -79,7 +78,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.username = username;
     }
 
-    @JsonProperty
+    @Override @JsonProperty
     public String getPassword() {
         return password;
     }
@@ -143,17 +142,6 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     public void setPerMetricTags(
             Map<String, Map<String, String>> perMetricTags) {
         this.perMetricTags = perMetricTags;
-    }
-
-    @Override
-    @JsonProperty
-    public Long getTagsCacheDuration() {
-        return tagsCacheDuration;
-    }
-
-    @JsonProperty
-    public void setTagsCacheDuration(Long tagsCacheDuration) {
-        this.tagsCacheDuration = tagsCacheDuration;
     }
 
     @Override

@@ -44,7 +44,6 @@ public class HawkularReporterBuilder {
     private Optional<Function<String, HawkularHttpClient>> httpClientProvider = Optional.empty();
     private final Map<String, String> globalTags = new HashMap<>();
     private final Map<String, Map<String, String>> perMetricTags = new HashMap<>();
-    private long tagsCacheDuration = 1000 * 60 * 10; // In milliseconds; default: 10min
     private boolean enableAutoTagging = true;
 
     /**
@@ -78,9 +77,6 @@ public class HawkularReporterBuilder {
         }
         if (config.getPerMetricTags() != null) {
             this.perMetricTags(config.getPerMetricTags());
-        }
-        if (config.getTagsCacheDuration() != null) {
-            this.tagsCacheDuration(config.getTagsCacheDuration());
         }
         if (config.getAutoTagging() != null && !config.getAutoTagging()) {
             this.disableAutoTagging();
@@ -223,39 +219,6 @@ public class HawkularReporterBuilder {
     }
 
     /**
-     * Set the eviction duration of tags cache (in milliseconds)<br/>
-     * This cache is used to prevent the reporter from tagging the metrics when they were already tagged<br/>
-     * Default duration is 10 minutes
-     * @param milliseconds number of milliseconds before eviction
-     */
-    public HawkularReporterBuilder tagsCacheDuration(long milliseconds) {
-        tagsCacheDuration = milliseconds;
-        return this;
-    }
-
-    /**
-     * Set the eviction duration of tags cache, in minutes<br/>
-     * This cache is used to prevent the reporter from tagging the metrics when they were already tagged<br/>
-     * Default duration is 10 minutes
-     * @param minutes number of minutes before eviction
-     */
-    public HawkularReporterBuilder tagsCacheDurationInMinutes(long minutes) {
-        tagsCacheDuration = TimeUnit.MILLISECONDS.convert(minutes, TimeUnit.MINUTES);
-        return this;
-    }
-
-    /**
-     * Set the eviction duration of tags cache, in hours<br/>
-     * This cache is used to prevent the reporter from tagging the metrics when they were already tagged<br/>
-     * Default duration is 10 minutes
-     * @param hours number of hours before eviction
-     */
-    public HawkularReporterBuilder tagsCacheDurationInHours(long hours) {
-        tagsCacheDuration = TimeUnit.MILLISECONDS.convert(hours, TimeUnit.HOURS);
-        return this;
-    }
-
-    /**
      * Use a custom {@link HawkularHttpClient}
      * @param httpClientProvider function that provides a custom {@link HawkularHttpClient} from input URI as String
      */
@@ -272,7 +235,7 @@ public class HawkularReporterBuilder {
                 .map(provider -> provider.apply(uri))
                 .orElseGet(() -> new JdkHawkularHttpClient(uri));
         client.addHeaders(headers);
-        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, tagsCacheDuration,
-                enableAutoTagging, rateUnit, durationUnit, filter);
+        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, enableAutoTagging, rateUnit,
+                durationUnit, filter);
     }
 }
