@@ -18,9 +18,7 @@ package org.hawkular.metrics.dropwizard;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.SortedMap;
@@ -33,14 +31,11 @@ import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Counting;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
-import com.codahale.metrics.Metered;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Sampling;
 import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.Timer;
 
@@ -54,24 +49,18 @@ public class HawkularReporter extends ScheduledReporter {
     private final Optional<String> prefix;
     private final Clock clock;
     private final HawkularHttpClient hawkularClient;
-    private final Map<String, String> globalTags;
-    private final Map<String, Map<String, String>> perMetricTags;
-    private final Map<String, Long> taggedMetricsCache = new HashMap<>();
-    private final long tagsCacheDuration;
-    private final boolean enableAutoTagging;
+    private final MetricsTagger metricsTagger;
 
     HawkularReporter(MetricRegistry registry, HawkularHttpClient hawkularClient, Optional<String> prefix, Map<String,
-            String> globalTags, Map<String, Map<String, String>> perMetricTags, long tagsCacheDuration, boolean
-            enableAutoTagging, TimeUnit rateUnit, TimeUnit durationUnit, MetricFilter filter) {
+            String> globalTags, Map<String, Map<String, String>> perMetricTags, boolean enableAutoTagging, TimeUnit
+            rateUnit, TimeUnit durationUnit, MetricFilter filter) {
         super(registry, "hawkular-reporter", filter, rateUnit, durationUnit);
 
         this.prefix = prefix;
         this.clock = Clock.defaultClock();
         this.hawkularClient = hawkularClient;
-        this.globalTags = globalTags;
-        this.perMetricTags = perMetricTags;
-        this.tagsCacheDuration = tagsCacheDuration;
-        this.enableAutoTagging = enableAutoTagging;
+        metricsTagger = new MetricsTagger(prefix, globalTags, perMetricTags, enableAutoTagging, hawkularClient,
+                registry);
     }
 
     @Override
@@ -87,7 +76,7 @@ public class HawkularReporter extends ScheduledReporter {
 
         final long timestamp = clock.getTime();
 
-        DataAccumulator accu = new DataAccumulator(timestamp);
+        DataAccumulator accu = new DataAccumulator();
         processGauges(accu, gauges);
         processCounters(accu, counters);
         processMeters(accu, meters);
@@ -118,9 +107,6 @@ public class HawkularReporter extends ScheduledReporter {
                 LOG.error("Could not post tags data", e);
             }
         });
-
-        // Cache eviction
-        evictFromCache(timestamp);
     }
 
     private static void processGauges(DataAccumulator builder, Map<String, Gauge> gauges) {
@@ -137,53 +123,24 @@ public class HawkularReporter extends ScheduledReporter {
 
     private static void processMeters(DataAccumulator builder, Map<String, Meter> meters) {
         for (Map.Entry<String, Meter> e : meters.entrySet()) {
-            processCounting(builder, e.getKey(), e.getValue(), "meter");
-            processMetered(builder, e.getKey(), e.getValue(), "meter");
+            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
+            MetricComposers.METERED.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
         }
     }
 
     private static void processHistograms(DataAccumulator builder, Map<String, Histogram> histograms) {
         for (Map.Entry<String, Histogram> e : histograms.entrySet()) {
-            processCounting(builder, e.getKey(), e.getValue(), "histogram");
-            processSampling(builder, e.getKey(), e.getValue(), "histogram");
+            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
+            MetricComposers.SAMPLING.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
         }
     }
 
     private static void processTimers(DataAccumulator builder, Map<String, Timer> timers) {
         for (Map.Entry<String, Timer> e : timers.entrySet()) {
-            processCounting(builder, e.getKey(), e.getValue(), "timer");
-            processMetered(builder, e.getKey(), e.getValue(), "timer");
-            processSampling(builder, e.getKey(), e.getValue(), "timer");
+            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
+            MetricComposers.METERED.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
+            MetricComposers.SAMPLING.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
         }
-    }
-
-    private static void processCounting(DataAccumulator builder, String name, Counting counting, String subKey) {
-        builder.addSubCounter(name, counting.getCount(), subKey, "count");
-    }
-
-    private static void processMetered(DataAccumulator builder, String name, Metered metered, String subKey) {
-        builder.addSubGauge(name, metered.getOneMinuteRate(), subKey, "1min")
-                .addSubGauge(name, metered.getFiveMinuteRate(), subKey, "5min")
-                .addSubGauge(name, metered.getFifteenMinuteRate(), subKey, "15min")
-                .addSubGauge(name, metered.getMeanRate(), subKey, "mean");
-    }
-
-    private static void processSampling(DataAccumulator builder, String name, Sampling sampling, String subKey) {
-        builder.addSubGauge(name, sampling.getSnapshot().getMin(), subKey, "min")
-                .addSubGauge(name, sampling.getSnapshot().getMax(), subKey, "max")
-                .addSubGauge(name, sampling.getSnapshot().getMean(), subKey, "mean")
-                .addSubGauge(name, sampling.getSnapshot().getMedian(), subKey, "median")
-                .addSubGauge(name, sampling.getSnapshot().getStdDev(), subKey, "stddev")
-                .addSubGauge(name, sampling.getSnapshot().get75thPercentile(), subKey, "75perc")
-                .addSubGauge(name, sampling.getSnapshot().get95thPercentile(), subKey, "95perc")
-                .addSubGauge(name, sampling.getSnapshot().get98thPercentile(), subKey, "98perc")
-                .addSubGauge(name, sampling.getSnapshot().get99thPercentile(), subKey, "99perc")
-                .addSubGauge(name, sampling.getSnapshot().get999thPercentile(), subKey, "999perc");
-    }
-
-    private void evictFromCache(long now) {
-        long evictingThreshold = now - tagsCacheDuration;
-        taggedMetricsCache.entrySet().removeIf(entry -> entry.getValue() < evictingThreshold);
     }
 
     public Optional<String> getPrefix() {
@@ -191,7 +148,7 @@ public class HawkularReporter extends ScheduledReporter {
     }
 
     public Map<String, String> getGlobalTags() {
-        return globalTags;
+        return metricsTagger.getGlobalTags();
     }
 
     public HawkularHttpClient getHawkularClient() {
@@ -199,19 +156,11 @@ public class HawkularReporter extends ScheduledReporter {
     }
 
     public Map<String, Map<String, String>> getPerMetricTags() {
-        return perMetricTags;
-    }
-
-    public Map<String, Long> getTaggedMetricsCache() {
-        return taggedMetricsCache;
-    }
-
-    public long getTagsCacheDuration() {
-        return tagsCacheDuration;
+        return metricsTagger.getPerMetricTags();
     }
 
     public boolean isEnableAutoTagging() {
-        return enableAutoTagging;
+        return metricsTagger.isEnableAutoTagging();
     }
 
     /**
@@ -224,14 +173,12 @@ public class HawkularReporter extends ScheduledReporter {
     }
 
     private class DataAccumulator {
-        private final long timestamp;
         private Map<String, Double> gauges = new HashMap<>();
         private Map<String, Long> counters = new HashMap<>();
         private Map<String, Map<String, String>> gaugesTags = new HashMap<>();
         private Map<String, Map<String, String>> countersTags = new HashMap<>();
 
-        private DataAccumulator(long timestamp) {
-            this.timestamp = timestamp;
+        private DataAccumulator() {
         }
 
         private Map<String, Double> getGauges() {
@@ -253,7 +200,6 @@ public class HawkularReporter extends ScheduledReporter {
         private DataAccumulator addCounter(String name, long l) {
             String fullName = prefix.map(p -> p + name).orElse(name);
             counters.put(fullName, l);
-            addTags(countersTags, fullName, name, new HashMap<>());
             return this;
         }
 
@@ -265,48 +211,29 @@ public class HawkularReporter extends ScheduledReporter {
                     && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
                 gauges.put(fullName, (Double) value);
             }
-            addTags(gaugesTags, fullName, name, new HashMap<>());
             return this;
         }
 
-        private DataAccumulator addSubCounter(String baseName, long l, String subKey, String subValue) {
-            String name = baseName + "." + subValue;
-            String fullName = prefix.map(p -> p + name).orElse(name);
-            counters.put(fullName, l);
-            addTags(countersTags, fullName, name, Collections.singletonMap(subKey, subValue));
+        private <T> DataAccumulator addSubCounter(MetricComposer<T,Long> metricComposer,
+                                                  Map.Entry<String, ? extends T> counterEntry) {
+            String nameWithSuffix = metricComposer.getMetricNameWithSuffix(counterEntry.getKey());
+            String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
+            counters.put(fullName, metricComposer.getData(counterEntry.getValue()));
             return this;
         }
 
-        private DataAccumulator addSubGauge(String baseName, Object value, String subKey, String subValue) {
-            String name = baseName + "." + subValue;
-            String fullName = prefix.map(p -> p + name).orElse(name);
+        private <T> DataAccumulator addSubGauge(MetricComposer<T,Object> metricComposer,
+                                                Map.Entry<String, ? extends T> gaugeEntry) {
+            String nameWithSuffix = metricComposer.getMetricNameWithSuffix(gaugeEntry.getKey());
+            String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
+            Object value = metricComposer.getData(gaugeEntry.getValue());
             if (value instanceof BigDecimal) {
                 gauges.put(fullName, ((BigDecimal) value).doubleValue());
             } else if (value != null && value.getClass().isAssignableFrom(Double.class)
                     && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
                 gauges.put(fullName, (Double) value);
             }
-            addTags(gaugesTags, fullName, name, Collections.singletonMap(subKey, subValue));
             return this;
-        }
-
-        private void addTags(Map<String, Map<String, String>> accuMap, String fullName, String shortName, Map<String,
-                String> autoTags) {
-            // Check tags; don't tag a metric that has already been tagged
-            if (!taggedMetricsCache.containsKey(fullName)) {
-                taggedMetricsCache.put(fullName, timestamp);
-                Map<String, String> metricTags = new LinkedHashMap<>(globalTags);
-                if (enableAutoTagging) {
-                    metricTags.putAll(autoTags);
-                }
-                // Don't use prefixed name for per-metric tagging
-                if (perMetricTags.containsKey(shortName)) {
-                    metricTags.putAll(perMetricTags.get(shortName));
-                }
-                if (!metricTags.isEmpty()) {
-                    accuMap.put(fullName, metricTags);
-                }
-            }
         }
     }
 }
