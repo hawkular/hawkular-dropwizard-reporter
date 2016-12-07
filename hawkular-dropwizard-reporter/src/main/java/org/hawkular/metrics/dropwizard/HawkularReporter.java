@@ -93,20 +93,6 @@ public class HawkularReporter extends ScheduledReporter {
         } catch (IOException e) {
             LOG.error("Could not post metrics data", e);
         }
-        accu.getCountersTags().forEach((metricId, tags) -> {
-            try {
-                hawkularClient.putTags("/counters/" + metricId + "/tags", HawkularJson.tagsToString(tags));
-            } catch (IOException e) {
-                LOG.error("Could not post tags data", e);
-            }
-        });
-        accu.getGaugesTags().forEach((metricId, tags) -> {
-            try {
-                hawkularClient.putTags("/gauges/" + metricId + "/tags", HawkularJson.tagsToString(tags));
-            } catch (IOException e) {
-                LOG.error("Could not post tags data", e);
-            }
-        });
     }
 
     private static void processGauges(DataAccumulator builder, Map<String, Gauge> gauges) {
@@ -175,8 +161,6 @@ public class HawkularReporter extends ScheduledReporter {
     private class DataAccumulator {
         private Map<String, Double> gauges = new HashMap<>();
         private Map<String, Long> counters = new HashMap<>();
-        private Map<String, Map<String, String>> gaugesTags = new HashMap<>();
-        private Map<String, Map<String, String>> countersTags = new HashMap<>();
 
         private DataAccumulator() {
         }
@@ -187,14 +171,6 @@ public class HawkularReporter extends ScheduledReporter {
 
         private Map<String, Long> getCounters() {
             return counters;
-        }
-
-        private Map<String, Map<String, String>> getGaugesTags() {
-            return gaugesTags;
-        }
-
-        private Map<String, Map<String, String>> getCountersTags() {
-            return countersTags;
         }
 
         private DataAccumulator addCounter(String name, long l) {
