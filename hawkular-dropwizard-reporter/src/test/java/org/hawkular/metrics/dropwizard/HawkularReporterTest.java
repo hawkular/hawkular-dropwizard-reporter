@@ -60,11 +60,13 @@ public class HawkularReporterTest {
         counter.inc();
         reporter.report();
 
-        assertThat(client.getPostedMetrics()).extracting(Pair::getLeft).containsExactly("counters");
-        JSONArray json = new JSONArray(client.getPostedMetrics().get(0).getRight());
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsExactly("counters");
+        JSONArray json = metrics.getJSONArray("counters");
         assertThat(json).extracting(idFromRoot).containsExactly("my.counter");
         assertThat(json).extracting(valueFromRoot).containsExactly(1);
-        assertThat(client.getPostedTags()).isEmpty();
+        assertThat(client.getTagsRestCalls()).isEmpty();
     }
 
     @Test
@@ -82,12 +84,14 @@ public class HawkularReporterTest {
         counter2.inc();
         reporter.report();
 
-        assertThat(client.getPostedMetrics()).extracting(Pair::getLeft).containsExactly("counters");
-        JSONArray json = new JSONArray(client.getPostedMetrics().get(0).getRight());
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsExactly("counters");
+        JSONArray json = metrics.getJSONArray("counters");
         assertThat(json).extracting(idFromRoot).containsOnly("my.first.counter", "my.second.counter");
         assertThat(json).extracting(valueFromRoot).containsExactly(1, 1);
 
-        assertThat(client.getPostedTags()).containsOnly(
+        assertThat(client.getTagsRestCalls()).containsOnly(
                 Pair.of("/counters/my.first.counter/tags", "{\"global-tag\":\"abc\"}"),
                 Pair.of("/counters/my.second.counter/tags", "{\"global-tag\":\"abc\",\"metric-tag\":\"def\"}"));
     }
@@ -105,12 +109,14 @@ public class HawkularReporterTest {
         histogram.update(4);
         reporter.report();
 
-        assertThat(client.getPostedMetrics()).extracting(Pair::getLeft).containsExactly("counters", "gauges");
-        JSONArray countersJson = new JSONArray(client.getPostedMetrics().get(0).getRight());
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("counters", "gauges");
+        JSONArray countersJson = metrics.getJSONArray("counters");
         assertThat(countersJson).extracting(idFromRoot).containsExactly("my.histogram.count");
         assertThat(countersJson).extracting(valueFromRoot).containsExactly(6);
 
-        JSONArray gaugesJson = new JSONArray(client.getPostedMetrics().get(1).getRight());
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
         Map<String, Integer> values = StreamSupport.stream(gaugesJson.spliterator(), false)
                 .collect(toMap(idFromRoot::extract, valueFromRoot::extract));
         // Note: we extract int values here for simplicity, but actual values are double. The goal is not to test
@@ -125,7 +131,7 @@ public class HawkularReporterTest {
                 entry("my.histogram.99perc", 8),
                 entry("my.histogram.999perc", 8));
 
-        assertThat(client.getPostedTags()).containsOnly(
+        assertThat(client.getTagsRestCalls()).containsOnly(
                 Pair.of("/counters/my.histogram.count/tags", "{\"histogram\":\"count\"}"),
                 Pair.of("/gauges/my.histogram.mean/tags", "{\"histogram\":\"mean\"}"),
                 Pair.of("/gauges/my.histogram.min/tags", "{\"histogram\":\"min\"}"),
@@ -140,27 +146,27 @@ public class HawkularReporterTest {
     }
 
     private static class HttpClientMock implements HawkularHttpClient {
-        private List<Pair<String, String>> postedMetrics = new ArrayList<>();
-        private List<Pair<String, String>> postedTags = new ArrayList<>();
+        private List<String> metricsRestCalls = new ArrayList<>();
+        private List<Pair<String, String>> tagsRestCalls = new ArrayList<>();
 
         @Override public void addHeaders(Map<String, String> headers) {}
 
-        @Override public HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException {
-            postedMetrics.add(Pair.of(type, jsonBody));
+        @Override public HawkularHttpResponse postMetrics(String jsonBody) throws IOException {
+            metricsRestCalls.add(jsonBody);
             return null;
         }
 
         @Override public HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException {
-            postedTags.add(Pair.of(resourcePath, jsonBody));
+            tagsRestCalls.add(Pair.of(resourcePath, jsonBody));
             return null;
         }
 
-        List<Pair<String, String>> getPostedMetrics() {
-            return postedMetrics;
+        List<String> getMetricsRestCalls() {
+            return metricsRestCalls;
         }
 
-        List<Pair<String, String>> getPostedTags() {
-            return postedTags;
+        List<Pair<String, String>> getTagsRestCalls() {
+            return tagsRestCalls;
         }
     }
 }

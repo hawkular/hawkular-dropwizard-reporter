@@ -84,11 +84,9 @@ public class HawkularReporter extends ScheduledReporter {
         processTimers(accu, timers);
 
         try {
-            if (!accu.getCounters().isEmpty()) {
-                hawkularClient.postMetric("counters", HawkularJson.countersToString(timestamp, accu.getCounters()));
-            }
-            if (!accu.getGauges().isEmpty()) {
-                hawkularClient.postMetric("gauges", HawkularJson.gaugesToString(timestamp, accu.getGauges()));
+            if (!accu.getCounters().isEmpty() || !accu.getGauges().isEmpty()) {
+                String json = HawkularJson.metricsToString(timestamp, accu.getCounters(), accu.getGauges());
+                hawkularClient.postMetrics(json);
             }
         } catch (IOException e) {
             LOG.error("Could not post metrics data", e);

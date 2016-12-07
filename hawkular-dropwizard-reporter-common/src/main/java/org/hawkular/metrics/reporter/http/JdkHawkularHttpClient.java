@@ -45,8 +45,8 @@ public class JdkHawkularHttpClient implements HawkularHttpClient {
     }
 
     @Override
-    public HawkularHttpResponse postMetric(String type, String jsonBody) throws IOException {
-        URL url = new URL(uri + "/" + type + "/raw");
+    public HawkularHttpResponse postMetrics(String jsonBody) throws IOException {
+        URL url = new URL(uri + "/metrics/raw");
         return send("POST", url, jsonBody.getBytes());
     }
 
