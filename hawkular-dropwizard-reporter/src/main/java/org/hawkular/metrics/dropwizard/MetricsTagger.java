@@ -27,6 +27,7 @@ import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
+import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.MetricRegistryListener;
 import com.codahale.metrics.Timer;
@@ -44,14 +45,17 @@ class MetricsTagger implements MetricRegistryListener {
     private final Map<String, Map<String, String>> perMetricTags;
     private final boolean enableAutoTagging;
     private final HawkularHttpClient hawkularClient;
+    private final MetricFilter metricFilter;
 
     MetricsTagger(Optional<String> prefix, Map<String, String> globalTags, Map<String, Map<String, String>>
-            perMetricTags, boolean enableAutoTagging, HawkularHttpClient hawkularClient, MetricRegistry registry) {
+            perMetricTags, boolean enableAutoTagging, HawkularHttpClient hawkularClient, MetricRegistry registry,
+            MetricFilter metricFilter) {
         this.prefix = prefix;
         this.globalTags = globalTags;
         this.perMetricTags = perMetricTags;
         this.enableAutoTagging = enableAutoTagging;
         this.hawkularClient = hawkularClient;
+        this.metricFilter = metricFilter;
 
         // Initialize with existing metrics
         registry.getGauges().forEach(this::onGaugeAdded);
@@ -97,25 +101,31 @@ class MetricsTagger implements MetricRegistryListener {
     }
 
     @Override public void onGaugeAdded(String name, Gauge<?> gauge) {
-        tagMetric(METRIC_TYPE_GAUGE, name);
+        if (metricFilter.matches(name, gauge)) {
+            tagMetric(METRIC_TYPE_GAUGE, name);
+        }
     }
 
     @Override public void onGaugeRemoved(String name) {
     }
 
     @Override public void onCounterAdded(String name, Counter counter) {
-        tagMetric(METRIC_TYPE_COUNTER, name);
+        if (metricFilter.matches(name, counter)) {
+            tagMetric(METRIC_TYPE_COUNTER, name);
+        }
     }
 
     @Override public void onCounterRemoved(String name) {
     }
 
     @Override public void onHistogramAdded(String name, Histogram histogram) {
-        for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-            tagMetric(name, metricComposer, "histogram");
-        }
-        for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
-            tagMetric(name, metricComposer, "histogram");
+        if (metricFilter.matches(name, histogram)) {
+            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
+                tagMetric(name, metricComposer, "histogram");
+            }
+            for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
+                tagMetric(name, metricComposer, "histogram");
+            }
         }
     }
 
@@ -123,11 +133,13 @@ class MetricsTagger implements MetricRegistryListener {
     }
 
     @Override public void onMeterAdded(String name, Meter meter) {
-        for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-            tagMetric(name, metricComposer, "meter");
-        }
-        for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
-            tagMetric(name, metricComposer, "meter");
+        if (metricFilter.matches(name, meter)) {
+            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
+                tagMetric(name, metricComposer, "meter");
+            }
+            for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
+                tagMetric(name, metricComposer, "meter");
+            }
         }
     }
 
@@ -135,14 +147,16 @@ class MetricsTagger implements MetricRegistryListener {
     }
 
     @Override public void onTimerAdded(String name, Timer timer) {
-        for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-            tagMetric(name, metricComposer, "timer");
-        }
-        for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
-            tagMetric(name, metricComposer, "timer");
-        }
-        for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
-            tagMetric(name, metricComposer, "timer");
+        if (metricFilter.matches(name, timer)) {
+            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
+                tagMetric(name, metricComposer, "timer");
+            }
+            for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
+                tagMetric(name, metricComposer, "timer");
+            }
+            for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
+                tagMetric(name, metricComposer, "timer");
+            }
         }
     }
 

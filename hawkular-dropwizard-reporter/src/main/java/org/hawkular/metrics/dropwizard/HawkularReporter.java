@@ -61,7 +61,7 @@ public class HawkularReporter extends ScheduledReporter {
         this.clock = Clock.defaultClock();
         this.hawkularClient = hawkularClient;
         metricsTagger = new MetricsTagger(prefix, globalTags, perMetricTags, enableAutoTagging, hawkularClient,
-                registry);
+                registry, filter);
     }
 
     @Override
