@@ -16,19 +16,14 @@
  */
 package org.hawkular.metrics.dropwizard;
 
-import java.util.Map;
-
 /**
  * @author Joel Takvorian
  */
-public interface HawkularReporterNullableConfig {
-    String getUri();
-    String getBearerToken();
-    String getPrefix();
-    Map<String, String> getHeaders();
-    Map<String, String> getGlobalTags();
-    Map<String, Map<String, String>> getPerMetricTags();
-    Boolean getAutoTagging();
-    String getUsername();
-    String getPassword();
+interface MetricComposer<T,U> {
+    U getData(T input);
+    String getSuffix();
+    String getMetricType();
+    default String getMetricNameWithSuffix(String name) {
+        return name + "." + getSuffix();
+    }
 }
