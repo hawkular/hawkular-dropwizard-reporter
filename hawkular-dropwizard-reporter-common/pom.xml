@@ -28,7 +28,7 @@
     <version>0.1.0-SNAPSHOT</version>
   </parent>
 
-  <artifactId>hawkular-reporter-common</artifactId>
+  <artifactId>hawkular-dropwizard-reporter-common</artifactId>
   <packaging>jar</packaging>
 
   <dependencies>

@@ -35,7 +35,7 @@
   <description>Dropwizard reporter for Hawkular</description>
 
   <modules>
-    <module>hawkular-reporter-common</module>
+    <module>hawkular-dropwizard-reporter-common</module>
     <module>hawkular-dropwizard-reporter</module>
     <module>hawkular-dropwizard-reporter-factory</module>
   </modules>
@@ -77,7 +77,7 @@
     <dependencies>
       <dependency>
         <groupId>org.hawkular.metrics</groupId>
-        <artifactId>hawkular-reporter-common</artifactId>
+        <artifactId>hawkular-dropwizard-reporter-common</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>
