@@ -31,4 +31,6 @@ public interface HawkularReporterNullableConfig {
     Boolean getAutoTagging();
     String getUsername();
     String getPassword();
+    Long getFailoverCacheDuration();
+    Integer getFailoverCacheMaxSize();
 }

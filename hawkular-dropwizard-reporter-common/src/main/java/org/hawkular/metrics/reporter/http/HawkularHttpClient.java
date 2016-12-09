@@ -16,8 +16,8 @@
  */
 package org.hawkular.metrics.reporter.http;
 
-import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Http client interface for Hawkular, in case someone would like to use other than the default one
@@ -25,6 +25,8 @@ import java.util.Map;
  */
 public interface HawkularHttpClient {
     void addHeaders(Map<String, String> headers);
-    HawkularHttpResponse postMetrics(String jsonBody) throws IOException;
-    HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException;
+    HawkularHttpResponse postMetrics(String jsonBody);
+    HawkularHttpResponse putTags(String resourcePath, String jsonBody);
+    void setFailoverOptions(Optional<Long> failoverCacheDuration, Optional<Integer> failoverCacheMaxSize);
+    void manageFailover();
 }

@@ -43,6 +43,8 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     private Map<String, String> globalTags;
     private Map<String, Map<String, String>> perMetricTags;
     private Boolean autoTagging;
+    private Long failoverCacheDuration;
+    private Integer failoverCacheMaxSize;
 
     public HawkularReporterFactory() {
     }
@@ -153,6 +155,28 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     @JsonProperty
     public void setAutoTagging(Boolean autoTagging) {
         this.autoTagging = autoTagging;
+    }
+
+    @Override
+    @JsonProperty
+    public Long getFailoverCacheDuration() {
+        return failoverCacheDuration;
+    }
+
+    @JsonProperty
+    public void setFailoverCacheDuration(Long failoverCacheDuration) {
+        this.failoverCacheDuration = failoverCacheDuration;
+    }
+
+    @Override
+    @JsonProperty
+    public Integer getFailoverCacheMaxSize() {
+        return failoverCacheMaxSize;
+    }
+
+    @JsonProperty
+    public void setFailoverCacheMaxSize(Integer failoverCacheMaxSize) {
+        this.failoverCacheMaxSize = failoverCacheMaxSize;
     }
 
     @Override

@@ -21,11 +21,11 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -151,14 +151,21 @@ public class HawkularReporterTest {
 
         @Override public void addHeaders(Map<String, String> headers) {}
 
-        @Override public HawkularHttpResponse postMetrics(String jsonBody) throws IOException {
+        @Override public HawkularHttpResponse postMetrics(String jsonBody) {
             metricsRestCalls.add(jsonBody);
             return null;
         }
 
-        @Override public HawkularHttpResponse putTags(String resourcePath, String jsonBody) throws IOException {
+        @Override public HawkularHttpResponse putTags(String resourcePath, String jsonBody) {
             tagsRestCalls.add(Pair.of(resourcePath, jsonBody));
             return null;
+        }
+
+        @Override
+        public void setFailoverOptions(Optional<Long> failoverCacheDuration, Optional<Integer> failoverCacheMaxSize) {
+        }
+
+        @Override public void manageFailover() {
         }
 
         List<String> getMetricsRestCalls() {

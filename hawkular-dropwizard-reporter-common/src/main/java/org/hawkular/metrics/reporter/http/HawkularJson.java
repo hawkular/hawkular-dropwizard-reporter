@@ -16,7 +16,6 @@
  */
 package org.hawkular.metrics.reporter.http;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -48,7 +47,7 @@ public final class HawkularJson {
         return builder.build().toString();
     }
 
-    public static String tagsToString(Map<String, String> tags) throws IOException {
+    public static String tagsToString(Map<String, String> tags) {
         JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
         tags.forEach(jsonObjectBuilder::add);
         return jsonObjectBuilder.build().toString();

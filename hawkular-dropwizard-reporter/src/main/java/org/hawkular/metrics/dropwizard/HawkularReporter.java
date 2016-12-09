@@ -16,7 +16,6 @@
  */
 package org.hawkular.metrics.dropwizard;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,8 +25,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.hawkular.metrics.reporter.http.HawkularHttpClient;
 import org.hawkular.metrics.reporter.http.HawkularJson;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.codahale.metrics.Clock;
 import com.codahale.metrics.Counter;
@@ -44,16 +41,20 @@ import com.codahale.metrics.Timer;
  */
 public class HawkularReporter extends ScheduledReporter {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HawkularReporter.class);
-
     private final Optional<String> prefix;
     private final Clock clock;
     private final HawkularHttpClient hawkularClient;
     private final MetricsTagger metricsTagger;
 
-    HawkularReporter(MetricRegistry registry, HawkularHttpClient hawkularClient, Optional<String> prefix, Map<String,
-            String> globalTags, Map<String, Map<String, String>> perMetricTags, boolean enableAutoTagging, TimeUnit
-            rateUnit, TimeUnit durationUnit, MetricFilter filter) {
+    HawkularReporter(MetricRegistry registry,
+                     HawkularHttpClient hawkularClient,
+                     Optional<String> prefix,
+                     Map<String, String> globalTags,
+                     Map<String, Map<String, String>> perMetricTags,
+                     boolean enableAutoTagging,
+                     TimeUnit rateUnit,
+                     TimeUnit durationUnit,
+                     MetricFilter filter) {
         super(registry, "hawkular-reporter", filter, rateUnit, durationUnit);
 
         this.prefix = prefix;
@@ -69,6 +70,9 @@ public class HawkularReporter extends ScheduledReporter {
                        SortedMap<String, Histogram> histograms,
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
+
+        hawkularClient.manageFailover();
+
         if (gauges.isEmpty() && counters.isEmpty() && histograms.isEmpty() && meters.isEmpty() &&
                 timers.isEmpty()) {
             return;
@@ -83,13 +87,9 @@ public class HawkularReporter extends ScheduledReporter {
         processHistograms(accu, histograms);
         processTimers(accu, timers);
 
-        try {
-            if (!accu.getCounters().isEmpty() || !accu.getGauges().isEmpty()) {
-                String json = HawkularJson.metricsToString(timestamp, accu.getCounters(), accu.getGauges());
-                hawkularClient.postMetrics(json);
-            }
-        } catch (IOException e) {
-            LOG.error("Could not post metrics data", e);
+        if (!accu.getCounters().isEmpty() || !accu.getGauges().isEmpty()) {
+            String json = HawkularJson.metricsToString(timestamp, accu.getCounters(), accu.getGauges());
+            hawkularClient.postMetrics(json);
         }
     }
 
@@ -149,8 +149,9 @@ public class HawkularReporter extends ScheduledReporter {
 
     /**
      * Create a new builder for an {@link HawkularReporter}
+     *
      * @param registry the Dropwizard Metrics registry
-     * @param tenant the Hawkular tenant ID
+     * @param tenant   the Hawkular tenant ID
      */
     public static HawkularReporterBuilder builder(MetricRegistry registry, String tenant) {
         return new HawkularReporterBuilder(registry, tenant);
@@ -188,7 +189,7 @@ public class HawkularReporter extends ScheduledReporter {
             return this;
         }
 
-        private <T> DataAccumulator addSubCounter(MetricComposer<T,Long> metricComposer,
+        private <T> DataAccumulator addSubCounter(MetricComposer<T, Long> metricComposer,
                                                   Map.Entry<String, ? extends T> counterEntry) {
             String nameWithSuffix = metricComposer.getMetricNameWithSuffix(counterEntry.getKey());
             String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
@@ -196,7 +197,7 @@ public class HawkularReporter extends ScheduledReporter {
             return this;
         }
 
-        private <T> DataAccumulator addSubGauge(MetricComposer<T,Object> metricComposer,
+        private <T> DataAccumulator addSubGauge(MetricComposer<T, Object> metricComposer,
                                                 Map.Entry<String, ? extends T> gaugeEntry) {
             String nameWithSuffix = metricComposer.getMetricNameWithSuffix(gaugeEntry.getKey());
             String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);

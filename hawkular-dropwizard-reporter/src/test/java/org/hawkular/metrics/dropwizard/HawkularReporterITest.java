@@ -164,6 +164,69 @@ public class HawkularReporterITest {
         assertThat(response.getResponseCode()).isEqualTo(200);
     }
 
+    @Test
+    public void shouldUseFailoverDuration() throws IOException, InterruptedException {
+        String metricName = randomName();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .uri("http://invalid:999")
+                .failoverCacheDuration(100)
+                .build();
+        JdkHawkularHttpClient client = (JdkHawkularHttpClient) reporter.getHawkularClient();
+
+        Meter meter = registry.meter(metricName);
+        meter.mark(1000);
+        Thread.sleep(100);
+        meter.mark(1000);
+        reporter.report();
+
+        // All 5 tags should have been evicted
+        assertThat(client.getFailoverCacheSize()).isEqualTo(1);
+
+        client.manageFailover();
+        // No eviction
+        assertThat(client.getFailoverCacheSize()).isEqualTo(1);
+
+        Thread.sleep(100);
+        client.manageFailover();
+        // Everything should have been evicted
+        assertThat(client.getFailoverCacheSize()).isEqualTo(0);
+    }
+
+    @Test
+    public void shouldUseFailoverMaxRequests() throws IOException, InterruptedException {
+        String metricName = randomName();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .uri("http://invalid:999")
+                .failoverCacheMaxSize(3)
+                .build();
+
+        Meter meter = registry.meter(metricName);
+        meter.mark(1000);
+        Thread.sleep(100);
+        meter.mark(1000);
+        reporter.report();
+
+        // 6 requests (6 = 5 tags + 1 metric), but majored by 3
+        assertThat(((JdkHawkularHttpClient) reporter.getHawkularClient()).getFailoverCacheSize()).isEqualTo(3);
+    }
+
+    @Test
+    public void shouldUseFailoverWithoutRestriction() throws IOException, InterruptedException {
+        String metricName = randomName();
+        HawkularReporter reporter = HawkularReporter.builder(registry, defaultTenant)
+                .uri("http://invalid:999")
+                .build();
+
+        Meter meter = registry.meter(metricName);
+        meter.mark(1000);
+        Thread.sleep(100);
+        meter.mark(1000);
+        reporter.report();
+
+        // 6 = 5 tags + 1 metric
+        assertThat(((JdkHawkularHttpClient) reporter.getHawkularClient()).getFailoverCacheSize()).isEqualTo(6);
+    }
+
     private static String randomName() {
         return RandomStringUtils.randomAlphanumeric(8).toLowerCase();
     }

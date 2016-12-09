@@ -45,6 +45,8 @@ public class HawkularReporterBuilder {
     private final Map<String, String> globalTags = new HashMap<>();
     private final Map<String, Map<String, String>> perMetricTags = new HashMap<>();
     private boolean enableAutoTagging = true;
+    private Optional<Long> failoverCacheDuration = Optional.of(1000L * 60L * 10L); // In milliseconds; default: 10min
+    private Optional<Integer> failoverCacheMaxSize = Optional.empty();
 
     /**
      * Create a new builder for an {@link HawkularReporter}
@@ -84,6 +86,8 @@ public class HawkularReporterBuilder {
         if (config.getUsername() != null && config.getPassword() != null) {
             this.basicAuth(config.getUsername(), config.getPassword());
         }
+        failoverCacheDuration = Optional.ofNullable(config.getFailoverCacheDuration());
+        failoverCacheMaxSize = Optional.ofNullable(config.getFailoverCacheMaxSize());
         return this;
     }
 
@@ -219,6 +223,50 @@ public class HawkularReporterBuilder {
     }
 
     /**
+     * Set the failover cache duration (in milliseconds)<br/>
+     * This cache is used to store post attempts in memory when the hawkular server cannot be reached<br/>
+     * Default duration is 10 minutes
+     * @param milliseconds number of milliseconds before eviction
+     */
+    public HawkularReporterBuilder failoverCacheDuration(long milliseconds) {
+        failoverCacheDuration = Optional.of(milliseconds);
+        return this;
+    }
+
+    /**
+     * Set the failover cache duration, in minutes<br/>
+     * This cache is used to store post attempts in memory when the hawkular server cannot be reached<br/>
+     * Default duration is 10 minutes
+     * @param minutes number of minutes before eviction
+     */
+    public HawkularReporterBuilder failoverCacheDurationInMinutes(long minutes) {
+        failoverCacheDuration = Optional.of(TimeUnit.MILLISECONDS.convert(minutes, TimeUnit.MINUTES));
+        return this;
+    }
+
+    /**
+     * Set the failover cache duration, in hours<br/>
+     * This cache is used to store post attempts in memory when the hawkular server cannot be reached<br/>
+     * Default duration is 10 minutes
+     * @param hours number of hours before eviction
+     */
+    public HawkularReporterBuilder failoverCacheDurationInHours(long hours) {
+        failoverCacheDuration = Optional.of(TimeUnit.MILLISECONDS.convert(hours, TimeUnit.HOURS));
+        return this;
+    }
+
+    /**
+     * Set the failover cache maximum size, in number of requests<br/>
+     * This cache is used to store post attempts in memory when the hawkular server cannot be reached<br/>
+     * By default this parameter is unset, which means there's no maximum
+     * @param reqs max number of requests to store
+     */
+    public HawkularReporterBuilder failoverCacheMaxSize(int reqs) {
+        failoverCacheMaxSize = Optional.of(reqs);
+        return this;
+    }
+
+    /**
      * Use a custom {@link HawkularHttpClient}
      * @param httpClientProvider function that provides a custom {@link HawkularHttpClient} from input URI as String
      */
@@ -235,7 +283,8 @@ public class HawkularReporterBuilder {
                 .map(provider -> provider.apply(uri))
                 .orElseGet(() -> new JdkHawkularHttpClient(uri));
         client.addHeaders(headers);
-        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, enableAutoTagging, rateUnit,
-                durationUnit, filter);
+        client.setFailoverOptions(failoverCacheDuration, failoverCacheMaxSize);
+        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, enableAutoTagging,
+                rateUnit, durationUnit, filter);
     }
 }

@@ -16,7 +16,6 @@
  */
 package org.hawkular.metrics.dropwizard;
 
-import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -79,12 +78,8 @@ class MetricsTagger implements MetricRegistryListener {
             tags.putAll(perMetricTags.get(nameWithSuffix));
         }
         if (!tags.isEmpty()) {
-            try {
-                hawkularClient.putTags("/" + metricComposer.getMetricType()
-                        + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
-            } catch (IOException e) {
-                throw new RuntimeException("Could not tag metric " + baseName, e);
-            }
+            hawkularClient.putTags("/" + metricComposer.getMetricType()
+                    + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
         }
     }
 
@@ -96,12 +91,8 @@ class MetricsTagger implements MetricRegistryListener {
             tags.putAll(perMetricTags.get(baseName));
         }
         if (!tags.isEmpty()) {
-            try {
-                hawkularClient.putTags("/" + metricType
-                        + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
-            } catch (IOException e) {
-                throw new RuntimeException("Could not tag metric " + baseName, e);
-            }
+            hawkularClient.putTags("/" + metricType
+                    + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
         }
     }
 
