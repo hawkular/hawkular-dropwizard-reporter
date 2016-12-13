@@ -30,7 +30,7 @@ import com.codahale.metrics.Sampling;
 /**
  * @author Joel Takvorian
  */
-public final class MetricComposers {
+final class MetricComposers {
 
     static final List<MetricComposer<Counting, Long>> COUNTINGS;
     static final List<MetricComposer<Metered, Object>> METERED;

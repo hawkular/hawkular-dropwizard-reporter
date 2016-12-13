@@ -17,6 +17,7 @@
 package org.hawkular.metrics.dropwizard;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -51,6 +52,7 @@ public class HawkularReporter extends ScheduledReporter {
                      Optional<String> prefix,
                      Map<String, String> globalTags,
                      Map<String, Map<String, String>> perMetricTags,
+                     Collection<RegexTags> regexTags,
                      boolean enableAutoTagging,
                      TimeUnit rateUnit,
                      TimeUnit durationUnit,
@@ -60,8 +62,8 @@ public class HawkularReporter extends ScheduledReporter {
         this.prefix = prefix;
         this.clock = Clock.defaultClock();
         this.hawkularClient = hawkularClient;
-        metricsTagger = new MetricsTagger(prefix, globalTags, perMetricTags, enableAutoTagging, hawkularClient,
-                registry, filter);
+        metricsTagger = new MetricsTagger(prefix, globalTags, perMetricTags, regexTags, enableAutoTagging,
+                hawkularClient, registry, filter);
     }
 
     @Override
@@ -139,8 +141,8 @@ public class HawkularReporter extends ScheduledReporter {
         return hawkularClient;
     }
 
-    public Map<String, Map<String, String>> getPerMetricTags() {
-        return metricsTagger.getPerMetricTags();
+    public Map<String, String> getTagsForMetrics(String m) {
+        return metricsTagger.getTagsForMetrics(m);
     }
 
     public boolean isEnableAutoTagging() {

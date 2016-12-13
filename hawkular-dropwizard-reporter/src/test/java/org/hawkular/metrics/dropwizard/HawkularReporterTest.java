@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -143,6 +144,36 @@ public class HawkularReporterTest {
                 Pair.of("/gauges/my.histogram.98perc/tags", "{\"histogram\":\"98perc\"}"),
                 Pair.of("/gauges/my.histogram.99perc/tags", "{\"histogram\":\"99perc\"}"),
                 Pair.of("/gauges/my.histogram.999perc/tags", "{\"histogram\":\"999perc\"}"));
+    }
+
+    @Test
+    public void shouldCreateRegexTags() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .addRegexTag(Pattern.compile("my\\..*"), "owner", "me")
+                .addMetricTag("my.first.counter", "type", "counter")
+                .build();
+
+        assertThat(reporter.getTagsForMetrics("my.first.gauge")).containsOnly(entry("owner", "me"));
+        assertThat(reporter.getTagsForMetrics("my.first.counter")).containsOnly(
+                entry("owner", "me"),
+                entry("type", "counter"));
+        assertThat(reporter.getTagsForMetrics("your.first.gauge")).isEmpty();
+    }
+
+    @Test
+    public void shouldCreateRegexTagsFromString() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .addMetricTag("/my\\..*/", "owner", "me")
+                .addMetricTag("my.first.counter", "type", "counter")
+                .build();
+
+        assertThat(reporter.getTagsForMetrics("my.first.gauge")).containsOnly(entry("owner", "me"));
+        assertThat(reporter.getTagsForMetrics("my.first.counter")).containsOnly(
+                entry("owner", "me"),
+                entry("type", "counter"));
+        assertThat(reporter.getTagsForMetrics("your.first.gauge")).isEmpty();
     }
 
     private static class HttpClientMock implements HawkularHttpClient {

@@ -16,6 +16,7 @@
  */
 package org.hawkular.metrics.dropwizard;
 
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -43,16 +44,19 @@ class MetricsTagger implements MetricRegistryListener {
     private final Optional<String> prefix;
     private final Map<String, String> globalTags;
     private final Map<String, Map<String, String>> perMetricTags;
+    private final Collection<RegexTags> regexTags;
     private final boolean enableAutoTagging;
     private final HawkularHttpClient hawkularClient;
     private final MetricFilter metricFilter;
 
     MetricsTagger(Optional<String> prefix, Map<String, String> globalTags, Map<String, Map<String, String>>
-            perMetricTags, boolean enableAutoTagging, HawkularHttpClient hawkularClient, MetricRegistry registry,
-            MetricFilter metricFilter) {
+            perMetricTags, Collection<RegexTags> regexTags, boolean enableAutoTagging,
+                  HawkularHttpClient hawkularClient, MetricRegistry registry,
+                  MetricFilter metricFilter) {
         this.prefix = prefix;
         this.globalTags = globalTags;
         this.perMetricTags = perMetricTags;
+        this.regexTags = regexTags;
         this.enableAutoTagging = enableAutoTagging;
         this.hawkularClient = hawkularClient;
         this.metricFilter = metricFilter;
@@ -75,12 +79,8 @@ class MetricsTagger implements MetricRegistryListener {
             tags.put(tagKey, metricComposer.getSuffix());
         }
         // Don't use prefixed name for per-metric tagging
-        if (perMetricTags.containsKey(baseName)) {
-            tags.putAll(perMetricTags.get(baseName));
-        }
-        if (perMetricTags.containsKey(nameWithSuffix)) {
-            tags.putAll(perMetricTags.get(nameWithSuffix));
-        }
+        tags.putAll(getTagsForMetrics(baseName));
+        tags.putAll(getTagsForMetrics(nameWithSuffix));
         if (!tags.isEmpty()) {
             hawkularClient.putTags("/" + metricComposer.getMetricType()
                     + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
@@ -91,13 +91,20 @@ class MetricsTagger implements MetricRegistryListener {
         String fullName = prefix.map(p -> p + baseName).orElse(baseName);
         Map<String, String> tags = new LinkedHashMap<>(globalTags);
         // Don't use prefixed name for per-metric tagging
-        if (perMetricTags.containsKey(baseName)) {
-            tags.putAll(perMetricTags.get(baseName));
-        }
+        tags.putAll(getTagsForMetrics(baseName));
         if (!tags.isEmpty()) {
             hawkularClient.putTags("/" + metricType
                     + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
         }
+    }
+
+    Map<String, String> getTagsForMetrics(String name) {
+        Map<String, String> tags = new LinkedHashMap<>();
+        regexTags.forEach(reg -> reg.match(name).ifPresent(tags::putAll));
+        if (perMetricTags.containsKey(name)) {
+            tags.putAll(perMetricTags.get(name));
+        }
+        return tags;
     }
 
     @Override public void onGaugeAdded(String name, Gauge<?> gauge) {
@@ -167,11 +174,8 @@ class MetricsTagger implements MetricRegistryListener {
         return globalTags;
     }
 
-    Map<String, Map<String, String>> getPerMetricTags() {
-        return perMetricTags;
-    }
-
     boolean isEnableAutoTagging() {
         return enableAutoTagging;
     }
+
 }
