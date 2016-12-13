@@ -42,8 +42,9 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     private Map<String, String> headers;
     private Map<String, String> globalTags;
     private Map<String, Map<String, String>> perMetricTags;
-    private Long tagsCacheDuration;
     private Boolean autoTagging;
+    private Long failoverCacheDuration;
+    private Integer failoverCacheMaxSize;
 
     public HawkularReporterFactory() {
     }
@@ -69,7 +70,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.tenant = tenant;
     }
 
-    @JsonProperty
+    @Override @JsonProperty
     public String getUsername() {
         return username;
     }
@@ -79,7 +80,7 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
         this.username = username;
     }
 
-    @JsonProperty
+    @Override @JsonProperty
     public String getPassword() {
         return password;
     }
@@ -147,17 +148,6 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
 
     @Override
     @JsonProperty
-    public Long getTagsCacheDuration() {
-        return tagsCacheDuration;
-    }
-
-    @JsonProperty
-    public void setTagsCacheDuration(Long tagsCacheDuration) {
-        this.tagsCacheDuration = tagsCacheDuration;
-    }
-
-    @Override
-    @JsonProperty
     public Boolean getAutoTagging() {
         return autoTagging;
     }
@@ -165,6 +155,28 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     @JsonProperty
     public void setAutoTagging(Boolean autoTagging) {
         this.autoTagging = autoTagging;
+    }
+
+    @Override
+    @JsonProperty
+    public Long getFailoverCacheDuration() {
+        return failoverCacheDuration;
+    }
+
+    @JsonProperty
+    public void setFailoverCacheDuration(Long failoverCacheDuration) {
+        this.failoverCacheDuration = failoverCacheDuration;
+    }
+
+    @Override
+    @JsonProperty
+    public Integer getFailoverCacheMaxSize() {
+        return failoverCacheMaxSize;
+    }
+
+    @JsonProperty
+    public void setFailoverCacheMaxSize(Integer failoverCacheMaxSize) {
+        this.failoverCacheMaxSize = failoverCacheMaxSize;
     }
 
     @Override

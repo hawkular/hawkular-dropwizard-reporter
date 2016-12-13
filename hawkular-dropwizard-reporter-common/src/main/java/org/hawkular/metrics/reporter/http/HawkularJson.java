@@ -16,7 +16,6 @@
  */
 package org.hawkular.metrics.reporter.http;
 
-import java.io.IOException;
 import java.util.Map;
 import java.util.function.BiFunction;
 
@@ -27,11 +26,48 @@ import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
 /**
+ * Some Json utility for Hawkular data model
  * @author Joel Takvorian
  */
 public final class HawkularJson {
 
     private HawkularJson() {
+    }
+
+    public static String metricsToString(Long timestamp,
+                                         Map<String, Long> counters,
+                                         Map<String, Double> gauges) {
+        JsonObjectBuilder builder = Json.createObjectBuilder();
+        if (!counters.isEmpty()) {
+            builder.add("counters", metricsJson(timestamp, counters, HawkularJson::longDataPoint));
+        }
+        if (!gauges.isEmpty()) {
+            builder.add("gauges", metricsJson(timestamp, gauges, HawkularJson::doubleDataPoint));
+        }
+        return builder.build().toString();
+    }
+
+    public static String tagsToString(Map<String, String> tags) {
+        JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
+        tags.forEach(jsonObjectBuilder::add);
+        return jsonObjectBuilder.build().toString();
+    }
+
+    private static <T> JsonArray metricsJson(Long timestamp,
+                                             Map<String, T> metricsPoints,
+                                             BiFunction<Long, T, JsonObject> bf) {
+        final JsonArrayBuilder builder = Json.createArrayBuilder();
+        metricsPoints.entrySet().stream()
+                .map(e -> metricJson(e.getKey(), bf.apply(timestamp, e.getValue())))
+                .forEach(builder::add);
+        return builder.build();
+    }
+
+    private static JsonObject metricJson(String name, JsonObject dataPoint) {
+        return Json.createObjectBuilder()
+                .add("id", name)
+                .add("dataPoints", Json.createArrayBuilder().add(dataPoint).build())
+                .build();
     }
 
     private static JsonObject doubleDataPoint(long timestamp, double value) {
@@ -46,38 +82,5 @@ public final class HawkularJson {
                 .add("timestamp", timestamp)
                 .add("value", value)
                 .build();
-    }
-
-    private static JsonObject metricJson(String name, JsonArray dataPoints) {
-        return Json.createObjectBuilder()
-                .add("id", name)
-                .add("dataPoints", dataPoints)
-                .build();
-    }
-
-    private static JsonObject metricJson(String name, JsonObject dataPoint) {
-        return metricJson(name, Json.createArrayBuilder().add(dataPoint).build());
-    }
-
-    public static String gaugesToString(Long timestamp, Map<String, Double> metricsPoints) {
-        return metricsToString(timestamp, metricsPoints, HawkularJson::doubleDataPoint);
-    }
-
-    public static String countersToString(Long timestamp, Map<String, Long> metricsPoints) {
-        return metricsToString(timestamp, metricsPoints, HawkularJson::longDataPoint);
-    }
-
-    public static String tagsToString(Map<String, String> tags) throws IOException {
-        JsonObjectBuilder jsonObjectBuilder = Json.createObjectBuilder();
-        tags.forEach(jsonObjectBuilder::add);
-        return jsonObjectBuilder.build().toString();
-    }
-
-    private static <T> String metricsToString(Long timestamp, Map<String, T> metricsPoints, BiFunction<Long, T, JsonObject> bf) {
-        final JsonArrayBuilder builder = Json.createArrayBuilder();
-        metricsPoints.entrySet().stream()
-                .map(e -> HawkularJson.metricJson(e.getKey(), bf.apply(timestamp, e.getValue())))
-                .forEach(builder::add);
-        return builder.build().toString();
     }
 }
