@@ -16,12 +16,16 @@
  */
 package org.hawkular.metrics.dropwizard;
 
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.hawkular.metrics.reporter.http.HawkularHttpClient;
 import org.hawkular.metrics.reporter.http.JdkHawkularHttpClient;
@@ -44,6 +48,7 @@ public class HawkularReporterBuilder {
     private Optional<Function<String, HawkularHttpClient>> httpClientProvider = Optional.empty();
     private final Map<String, String> globalTags = new HashMap<>();
     private final Map<String, Map<String, String>> perMetricTags = new HashMap<>();
+    private final Collection<RegexTags> regexTags = new ArrayList<>();
     private boolean enableAutoTagging = true;
     private Optional<Long> failoverCacheDuration = Optional.of(1000L * 60L * 10L); // In milliseconds; default: 10min
     private Optional<Integer> failoverCacheMaxSize = Optional.empty();
@@ -190,7 +195,15 @@ public class HawkularReporterBuilder {
      */
     public HawkularReporterBuilder perMetricTags(Map<String, Map<String, String>> tags) {
         this.perMetricTags.clear();
-        this.perMetricTags.putAll(tags);
+        this.regexTags.clear();
+        tags.forEach((k,v) -> {
+            Optional<RegexTags> optRegexTags = RegexTags.checkAndCreate(k, v);
+            if (optRegexTags.isPresent()) {
+                this.regexTags.add(optRegexTags.get());
+            } else {
+                this.perMetricTags.put(k, v);
+            }
+        });
         return this;
     }
 
@@ -201,14 +214,30 @@ public class HawkularReporterBuilder {
      * @param value tag value
      */
     public HawkularReporterBuilder addMetricTag(String metric, String key, String value) {
-        final Map<String, String> tags;
-        if (perMetricTags.containsKey(metric)) {
-            tags = perMetricTags.get(metric);
+        Optional<RegexTags> optRegexTags = RegexTags.checkAndCreate(metric, Collections.singletonMap(key, value));
+        if (optRegexTags.isPresent()) {
+            regexTags.add(optRegexTags.get());
         } else {
-            tags = new HashMap<>();
-            perMetricTags.put(metric, tags);
+            final Map<String, String> tags;
+            if (perMetricTags.containsKey(metric)) {
+                tags = perMetricTags.get(metric);
+            } else {
+                tags = new HashMap<>();
+                perMetricTags.put(metric, tags);
+            }
+            tags.put(key, value);
         }
-        tags.put(key, value);
+        return this;
+    }
+
+    /**
+     * Set a tag on a given metric name
+     * @param pattern the regex pattern
+     * @param key tag key
+     * @param value tag value
+     */
+    public HawkularReporterBuilder addRegexTag(Pattern pattern, String key, String value) {
+        regexTags.add(new RegexTags(pattern, Collections.singletonMap(key, value)));
         return this;
     }
 
@@ -284,7 +313,7 @@ public class HawkularReporterBuilder {
                 .orElseGet(() -> new JdkHawkularHttpClient(uri));
         client.addHeaders(headers);
         client.setFailoverOptions(failoverCacheDuration, failoverCacheMaxSize);
-        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, enableAutoTagging,
+        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, regexTags, enableAutoTagging,
                 rateUnit, durationUnit, filter);
     }
 }
