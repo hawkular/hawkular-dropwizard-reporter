@@ -95,15 +95,15 @@ Timer           | 14 gauges and 1 counter
 So a single metric in Dropwizard may be "exploded" into several metrics in Hawkular. These exploded metrics share
 the same base name (ie. the dropwizard metric name), with an appended suffix that explains what kind of data it represents.
 For example, a Meter metric named _my.metered.metric_ in dropwizard will be converted in Hawkular in several metrics
-such as _my.metered.metric.1min_, _my.metered.metric.mean_, etc. All suffixes are explained as follow:
+such as _my.metered.metric.1minrt_, _my.metered.metric.meanrt_, etc. All suffixes are explained as follow:
 
 Suffix | Description | Applies to
 ------ | ----------- | ----------
 .count | Counts number of ticks / occurrences ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getCount--)) | Histograms, Meters and Timers
-.1min | One minute rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getOneMinuteRate--)) | Meters and Timers
-.5min | Five minutes rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getFiveMinuteRate--)) | Meters and Timers
-.15min | Fifteen minutes rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getFifteenMinuteRate--)) | Meters and Timers
-.mean | Mean rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getMeanRate--)) | Meters and Timers
+.1minrt | One minute rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getOneMinuteRate--)) | Meters and Timers
+.5minrt | Five minutes rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getFiveMinuteRate--)) | Meters and Timers
+.15minrt | Fifteen minutes rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getFifteenMinuteRate--)) | Meters and Timers
+.meanrt | Mean rate ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Metered.html#getMeanRate--)) | Meters and Timers
 .min | Minimum ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Snapshot.html#getMin--)) | Histograms and Timers
 .max | Maximum ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Snapshot.html#getMax--)) | Histograms and Timers
 .median | Median ([javadoc](http://metrics.dropwizard.io/3.1.0/apidocs/com/codahale/metrics/Snapshot.html#getMedian--)) | Histograms and Timers

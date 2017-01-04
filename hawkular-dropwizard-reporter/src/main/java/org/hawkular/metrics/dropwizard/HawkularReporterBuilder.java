@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -244,7 +244,7 @@ public class HawkularReporterBuilder {
     /**
      * Disable auto-tagging. By default, it is enabled.<br/>
      * When enabled, some metric types such as Meters or Timers will automatically generate additional information as
-     * tags. For instance, a Meter metric will generate a tag "meter:5min" on its 5-minutes-rate component.
+     * tags. For instance, a Meter metric will generate a tag "meter:5minrt" on its 5-minutes-rate component.
      */
     public HawkularReporterBuilder disableAutoTagging() {
         enableAutoTagging = false;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -40,10 +40,10 @@ final class MetricComposers {
         COUNTINGS = new ArrayList<>(1);
         COUNTINGS.add(metricComposer(Counting::getCount, "count", METRIC_TYPE_COUNTER));
         METERED = new ArrayList<>(4);
-        METERED.add(metricComposer(Metered::getOneMinuteRate, "1min", METRIC_TYPE_GAUGE));
-        METERED.add(metricComposer(Metered::getFiveMinuteRate, "5min", METRIC_TYPE_GAUGE));
-        METERED.add(metricComposer(Metered::getFifteenMinuteRate, "15min", METRIC_TYPE_GAUGE));
-        METERED.add(metricComposer(Metered::getMeanRate, "mean", METRIC_TYPE_GAUGE));
+        METERED.add(metricComposer(Metered::getOneMinuteRate, "1minrt", METRIC_TYPE_GAUGE));
+        METERED.add(metricComposer(Metered::getFiveMinuteRate, "5minrt", METRIC_TYPE_GAUGE));
+        METERED.add(metricComposer(Metered::getFifteenMinuteRate, "15minrt", METRIC_TYPE_GAUGE));
+        METERED.add(metricComposer(Metered::getMeanRate, "meanrt", METRIC_TYPE_GAUGE));
         SAMPLING = new ArrayList<>(10);
         SAMPLING.add(metricComposer(s -> s.getSnapshot().getMin(), "min", METRIC_TYPE_GAUGE));
         SAMPLING.add(metricComposer(s -> s.getSnapshot().getMax(), "max", METRIC_TYPE_GAUGE));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -127,7 +127,7 @@ public class HawkularReporterITest {
         meter.mark(1000);
         reporter.report();
 
-        HawkularHttpResponse response = defaultClient.readMetric("gauges", metricName + ".mean");
+        HawkularHttpResponse response = defaultClient.readMetric("gauges", metricName + ".meanrt");
 
         assertThat(response.getResponseCode()).isEqualTo(200);
         JSONArray result = new JSONArray(response.getContent());
