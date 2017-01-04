@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +18,9 @@ package org.hawkular.metrics.dropwizard;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.entry;
 
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.Test;
@@ -28,16 +28,16 @@ import org.junit.Test;
 /**
  * @author Joel Takvorian
  */
-public class RegexTagsTest {
+public class RegexContainerTest {
 
     @Test
     public void shouldCheckAndCreate() throws Exception {
-        Optional<RegexTags> result = RegexTags.checkAndCreate("/^some[\\s]regex$/", Collections.singletonMap("k", "v"));
+        Optional<RegexContainer<String>> result = RegexContainer
+                .checkAndCreate("/^some[\\s]regex$/", "content");
         assertThat(result)
                 .flatMap(r -> r.match("some\tregex"))
                 .isPresent()
-                .hasValueSatisfying(tags ->
-                        assertThat(tags).containsExactly(entry("k", "v")));
+                .hasValue("content");
 
         assertThat(result)
                 .flatMap(r -> r.match("some\tregex\tnot\tmatching"))
@@ -46,7 +46,8 @@ public class RegexTagsTest {
 
     @Test
     public void shouldCheckAndNotCreate() throws Exception {
-        Optional<RegexTags> result = RegexTags.checkAndCreate("/{}won't compile/", Collections.singletonMap("k", "v"));
+        Optional<RegexContainer<Map<String, String>>> result = RegexContainer
+                .checkAndCreate("/{}won't compile/", Collections.singletonMap("k", "v"));
         assertThat(result).isEmpty();
     }
 }
