@@ -147,6 +147,10 @@ public class HawkularReporter extends ScheduledReporter {
         return tagger.getTagsForMetrics(m);
     }
 
+    public Optional<Collection<String>> getAllowedParts(String metricName) {
+        return decomposer.getAllowedParts(metricName);
+    }
+
     public boolean isEnableTagComposition() {
         return tagger.isEnableTagComposition();
     }

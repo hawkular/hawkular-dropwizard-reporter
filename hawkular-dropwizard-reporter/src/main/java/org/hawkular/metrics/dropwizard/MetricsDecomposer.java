@@ -72,6 +72,21 @@ final class MetricsDecomposer {
         this.regexMetricsConversion = regexMetricsConversion;
     }
 
+    Optional<Collection<String>> getAllowedParts(String metricName) {
+        if (metricsConversion.containsKey(metricName)) {
+            return Optional.of(metricsConversion.get(metricName));
+        } else {
+            for (RegexContainer<Set<String>> reg : regexMetricsConversion) {
+                Optional<Set<String>> match = reg.match(metricName);
+                if (match.isPresent()) {
+                    return Optional.of(match.get());
+                }
+            }
+
+        }
+        return Optional.empty();
+    }
+
     private static <T,U> MetricPart<T,U> part(Function<T,U> getter, String suffix, String type) {
         return new MetricPart<T, U>() {
             @Override public U getData(T input) {
@@ -88,23 +103,11 @@ final class MetricsDecomposer {
         };
     }
 
-    private Predicate<String> getMetricPredicate(String metricName) {
-        if (metricsConversion.containsKey(metricName)) {
-            return part -> metricsConversion.get(metricName).contains(part);
-        } else {
-            for (RegexContainer<Set<String>> reg : regexMetricsConversion) {
-                Optional<Set<String>> match = reg.match(metricName);
-                if (match.isPresent()) {
-                    return part -> match.get().contains(part);
-                }
-            }
-
-        }
-        return part -> true;
-    }
-
     PartsStreamer streamParts(String metricName) {
-        return new PartsStreamer(getMetricPredicate(metricName));
+        Predicate<String> p = getAllowedParts(metricName)
+                .map(allowed -> (Predicate<String>)(allowed::contains))
+                .orElse(part -> true);
+        return new PartsStreamer(p);
     }
 
     static class PartsStreamer {
