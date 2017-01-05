@@ -21,8 +21,6 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -41,7 +39,6 @@ import org.json.JSONObject;
 import org.junit.Test;
 
 import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
@@ -248,6 +245,27 @@ public class HawkularReporterTest {
                 entry("owner", "me"),
                 entry("type", "counter"));
         assertThat(reporter.getTagsForMetrics("your.first.gauge")).isEmpty();
+    }
+
+    @Test
+    public void shouldDefaultBehaviourBeListedLast() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .setMetricComposition("meter.1", Lists.newArrayList("count", "meanrt", "1minrt"))
+                .setRegexMetricComposition(Pattern.compile("meter\\.2"), Lists.newArrayList("count", "meanrt", "15minrt"))
+                // Here is the default behaviour => every regex beyond this point will be ignored
+                .setRegexMetricComposition(Pattern.compile(".*"), Lists.newArrayList("count", "meanrt"))
+                .setRegexMetricComposition(Pattern.compile("meter\\.3"), Lists.newArrayList("count", "meanrt", "15minrt"))
+                .build();
+
+        Optional<Collection<String>> parts = reporter.getAllowedParts("meter.1");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt", "1minrt"));
+
+        parts = reporter.getAllowedParts("meter.2");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt", "15minrt"));
+
+        parts = reporter.getAllowedParts("meter.3");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt"));
     }
 
     @Test
