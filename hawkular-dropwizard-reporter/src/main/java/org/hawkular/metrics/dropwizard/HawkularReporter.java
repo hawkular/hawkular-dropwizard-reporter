@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,6 +17,7 @@
 package org.hawkular.metrics.dropwizard;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -184,9 +185,14 @@ public class HawkularReporter extends ScheduledReporter {
             String fullName = prefix.map(p -> p + name).orElse(name);
             if (value instanceof BigDecimal) {
                 gauges.put(fullName, ((BigDecimal) value).doubleValue());
-            } else if (value != null && value.getClass().isAssignableFrom(Double.class)
-                    && !Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
-                gauges.put(fullName, (Double) value);
+            } else if (value instanceof BigInteger) {
+                gauges.put(fullName, ((BigInteger) value).doubleValue());
+            } else if (value != null && value.getClass().isAssignableFrom(Double.class)) {
+                if (!Double.isNaN((Double) value) && Double.isFinite((Double) value)) {
+                    gauges.put(fullName, (Double) value);
+                }
+            } else if (value != null && value instanceof Number) {
+                gauges.put(fullName, ((Number) value).doubleValue());
             }
             return this;
         }
