@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,8 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -38,6 +40,7 @@ import org.json.JSONObject;
 import org.junit.Test;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.MetricRegistry;
 
@@ -50,6 +53,9 @@ public class HawkularReporterTest {
     private final Extractor<Object, String> idFromRoot = e -> ((JSONObject)e).getString("id");
     private final Extractor<Object, Integer> valueFromDataPoints = e -> ((JSONObject)e).getInt("value");
     private final Extractor<Object, Integer> valueFromRoot = e -> valueFromDataPoints.extract(((JSONObject)e)
+            .getJSONArray("dataPoints").get(0));
+    private final Extractor<Object, Double> dValueFromDataPoints = e -> ((JSONObject)e).getDouble("value");
+    private final Extractor<Object, Double> dValueFromRoot = e -> dValueFromDataPoints.extract(((JSONObject)e)
             .getJSONArray("dataPoints").get(0));
     private final HttpClientMock client = new HttpClientMock();
 
@@ -174,6 +180,122 @@ public class HawkularReporterTest {
                 entry("owner", "me"),
                 entry("type", "counter"));
         assertThat(reporter.getTagsForMetrics("your.first.gauge")).isEmpty();
+    }
+
+    @Test
+    public void shouldReportDoubleGauge() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<Double> gauge = () -> 1.5d;
+        registry.register("gauge.double", gauge);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Double> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, dValueFromRoot::extract));
+        assertThat(values).containsOnly(entry("gauge.double", 1.5d));
+    }
+
+    @Test
+    public void shouldNotFailOnInfinityOrNaNGauge() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<Double> g1 = () -> Double.POSITIVE_INFINITY;
+        final Gauge<Double> g2 = () -> Double.NaN;
+        registry.register("gauge.infinity", g1);
+        registry.register("gauge.nan", g2);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(0);
+        // Infinity and NaN are not supported in Hawkular
+    }
+
+    @Test
+    public void shouldReportBigDecimalGauge() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<BigDecimal> gauge = () -> new BigDecimal("1.5");
+        registry.register("gauge.bigd", gauge);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Double> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, dValueFromRoot::extract));
+        assertThat(values).containsOnly(entry("gauge.bigd", 1.5d));
+    }
+
+    @Test
+    public void shouldReportIntegerGauges() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<Integer> gauge = () -> 1;
+        registry.register("gauge.integer", gauge);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Double> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, dValueFromRoot::extract));
+        assertThat(values).containsOnly(entry("gauge.integer", 1d));
+    }
+
+    @Test
+    public void shouldReportLongGauges() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<Long> gauge = () -> 101L;
+        registry.register("gauge.long", gauge);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Double> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, dValueFromRoot::extract));
+        assertThat(values).containsOnly(entry("gauge.long", 101d));
+    }
+
+    @Test
+    public void shouldReportBigIntegerGauge() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Gauge<BigInteger> gauge = () -> new BigInteger("2");
+        registry.register("gauge.bigi", gauge);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Double> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, dValueFromRoot::extract));
+        assertThat(values).containsOnly(entry("gauge.bigi", 2d));
     }
 
     private static class HttpClientMock implements HawkularHttpClient {
