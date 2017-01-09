@@ -42,8 +42,8 @@ final class MetricsDecomposer {
     private static final List<MetricPart<Metered, Object>> METERED;
     private static final List<MetricPart<Sampling, Object>> SAMPLING;
 
-    private final Map<String, Set<String>> metricsConversion;
-    private final Collection<RegexContainer<Set<String>>> regexMetricsConversion;
+    private final Map<String, Set<String>> namedMetricsComposition;
+    private final Collection<RegexContainer<Set<String>>> regexComposition;
 
     static {
         COUNTINGS = new ArrayList<>(1);
@@ -66,17 +66,17 @@ final class MetricsDecomposer {
         SAMPLING.add(part(s -> s.getSnapshot().get999thPercentile(), "999perc", METRIC_TYPE_GAUGE));
     }
 
-    MetricsDecomposer(Map<String, Set<String>> metricsConversion,
-                      Collection<RegexContainer<Set<String>>> regexMetricsConversion) {
-        this.metricsConversion = metricsConversion;
-        this.regexMetricsConversion = regexMetricsConversion;
+    MetricsDecomposer(Map<String, Set<String>> namedMetricsComposition,
+                      Collection<RegexContainer<Set<String>>> regexComposition) {
+        this.namedMetricsComposition = namedMetricsComposition;
+        this.regexComposition = regexComposition;
     }
 
     Optional<Collection<String>> getAllowedParts(String metricName) {
-        if (metricsConversion.containsKey(metricName)) {
-            return Optional.of(metricsConversion.get(metricName));
+        if (namedMetricsComposition.containsKey(metricName)) {
+            return Optional.of(namedMetricsComposition.get(metricName));
         } else {
-            for (RegexContainer<Set<String>> reg : regexMetricsConversion) {
+            for (RegexContainer<Set<String>> reg : regexComposition) {
                 Optional<Set<String>> match = reg.match(metricName);
                 if (match.isPresent()) {
                     return Optional.of(match.get());
