@@ -21,8 +21,10 @@ import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -33,7 +35,7 @@ import org.hawkular.metrics.reporter.http.JdkHawkularHttpClient;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 
-public class HawkularReporterBuilder {
+@SuppressWarnings("WeakerAccess") public class HawkularReporterBuilder {
 
     private static final String KEY_HEADER_TENANT = "Hawkular-Tenant";
     private static final String KEY_HEADER_AUTHORIZATION = "Authorization";
@@ -48,10 +50,12 @@ public class HawkularReporterBuilder {
     private Optional<Function<String, HawkularHttpClient>> httpClientProvider = Optional.empty();
     private final Map<String, String> globalTags = new HashMap<>();
     private final Map<String, Map<String, String>> perMetricTags = new HashMap<>();
-    private final Collection<RegexTags> regexTags = new ArrayList<>();
-    private boolean enableAutoTagging = true;
+    private final Collection<RegexContainer<Map<String, String>>> regexTags = new ArrayList<>();
+    private boolean tagComposition = true;
     private Optional<Long> failoverCacheDuration = Optional.of(1000L * 60L * 10L); // In milliseconds; default: 10min
     private Optional<Integer> failoverCacheMaxSize = Optional.empty();
+    private final Map<String, Set<String>> namedMetricsComposition = new HashMap<>();
+    private final Collection<RegexContainer<Set<String>>> regexComposition = new ArrayList<>();
 
     /**
      * Create a new builder for an {@link HawkularReporter}
@@ -85,11 +89,14 @@ public class HawkularReporterBuilder {
         if (config.getPerMetricTags() != null) {
             this.perMetricTags(config.getPerMetricTags());
         }
-        if (config.getAutoTagging() != null && !config.getAutoTagging()) {
-            this.disableAutoTagging();
+        if (config.getTagComposition() != null && !config.getTagComposition()) {
+            this.disableTagComposition();
         }
         if (config.getUsername() != null && config.getPassword() != null) {
             this.basicAuth(config.getUsername(), config.getPassword());
+        }
+        if (config.getMetricComposition() != null) {
+            this.metricComposition(config.getMetricComposition());
         }
         failoverCacheDuration = Optional.ofNullable(config.getFailoverCacheDuration());
         failoverCacheMaxSize = Optional.ofNullable(config.getFailoverCacheMaxSize());
@@ -197,7 +204,7 @@ public class HawkularReporterBuilder {
         this.perMetricTags.clear();
         this.regexTags.clear();
         tags.forEach((k,v) -> {
-            Optional<RegexTags> optRegexTags = RegexTags.checkAndCreate(k, v);
+            Optional<RegexContainer<Map<String, String>>> optRegexTags = RegexContainer.checkAndCreate(k, v);
             if (optRegexTags.isPresent()) {
                 this.regexTags.add(optRegexTags.get());
             } else {
@@ -214,7 +221,8 @@ public class HawkularReporterBuilder {
      * @param value tag value
      */
     public HawkularReporterBuilder addMetricTag(String metric, String key, String value) {
-        Optional<RegexTags> optRegexTags = RegexTags.checkAndCreate(metric, Collections.singletonMap(key, value));
+        Optional<RegexContainer<Map<String, String>>> optRegexTags = RegexContainer
+                .checkAndCreate(metric, Collections.singletonMap(key, value));
         if (optRegexTags.isPresent()) {
             regexTags.add(optRegexTags.get());
         } else {
@@ -231,23 +239,68 @@ public class HawkularReporterBuilder {
     }
 
     /**
-     * Set a tag on a given metric name
+     * Set a tag on metrics matching this regex
      * @param pattern the regex pattern
      * @param key tag key
      * @param value tag value
      */
     public HawkularReporterBuilder addRegexTag(Pattern pattern, String key, String value) {
-        regexTags.add(new RegexTags(pattern, Collections.singletonMap(key, value)));
+        regexTags.add(new RegexContainer<>(pattern, Collections.singletonMap(key, value)));
         return this;
     }
 
     /**
-     * Disable auto-tagging. By default, it is enabled.<br/>
+     * Disable auto-tagging composed metrics. By default, it is enabled.<br/>
      * When enabled, some metric types such as Meters or Timers will automatically generate additional information as
      * tags. For instance, a Meter metric will generate a tag "meter:5minrt" on its 5-minutes-rate component.
      */
-    public HawkularReporterBuilder disableAutoTagging() {
-        enableAutoTagging = false;
+    public HawkularReporterBuilder disableTagComposition() {
+        tagComposition = false;
+        return this;
+    }
+
+    /**
+     * Set all metrics composition at once. It overrides any per-metric composition that was already set.
+     * @param conversions per-metric composition
+     */
+    public HawkularReporterBuilder metricComposition(Map<String, Collection<String>> conversions) {
+        this.namedMetricsComposition.clear();
+        this.regexComposition.clear();
+        conversions.forEach((k,v) -> {
+            Set<String> uniqueParts = new HashSet<>(v);
+            Optional<RegexContainer<Set<String>>> optRegexTags = RegexContainer.checkAndCreate(k, uniqueParts);
+            if (optRegexTags.isPresent()) {
+                this.regexComposition.add(optRegexTags.get());
+            } else {
+                this.namedMetricsComposition.put(k, uniqueParts);
+            }
+        });
+        return this;
+    }
+
+    /**
+     * Set composing parts for a given metric name
+     * @param metric the metric name
+     * @param parts metric composed parts (such as "1minrt", "mean", "99perc", etc. - see project documentation)
+     */
+    public HawkularReporterBuilder setMetricComposition(String metric, Collection<String> parts) {
+        Set<String> uniqueParts = new HashSet<>(parts);
+        Optional<RegexContainer<Set<String>>> optRegexTags = RegexContainer.checkAndCreate(metric, uniqueParts);
+        if (optRegexTags.isPresent()) {
+            regexComposition.add(optRegexTags.get());
+        } else {
+            namedMetricsComposition.put(metric, uniqueParts);
+        }
+        return this;
+    }
+
+    /**
+     * Set composing parts for metrics matching this regex
+     * @param pattern the regex pattern
+     * @param parts metric composed parts (such as "1minrt", "mean", "99perc", etc. - see project documentation)
+     */
+    public HawkularReporterBuilder setRegexMetricComposition(Pattern pattern, Collection<String> parts) {
+        regexComposition.add(new RegexContainer<>(pattern, new HashSet<>(parts)));
         return this;
     }
 
@@ -313,7 +366,9 @@ public class HawkularReporterBuilder {
                 .orElseGet(() -> new JdkHawkularHttpClient(uri));
         client.addHeaders(headers);
         client.setFailoverOptions(failoverCacheDuration, failoverCacheMaxSize);
-        return new HawkularReporter(registry, client, prefix, globalTags, perMetricTags, regexTags, enableAutoTagging,
-                rateUnit, durationUnit, filter);
+        MetricsDecomposer decomposer = new MetricsDecomposer(namedMetricsComposition, regexComposition);
+        MetricsTagger tagger = new MetricsTagger(prefix, globalTags, perMetricTags, regexTags, tagComposition,
+                decomposer, client, registry, filter);
+        return new HawkularReporter(registry, client, prefix, decomposer, tagger, rateUnit, durationUnit, filter);
     }
 }

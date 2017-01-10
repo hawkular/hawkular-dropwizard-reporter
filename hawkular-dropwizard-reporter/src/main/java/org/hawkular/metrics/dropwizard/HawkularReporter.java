@@ -46,15 +46,14 @@ public class HawkularReporter extends ScheduledReporter {
     private final Optional<String> prefix;
     private final Clock clock;
     private final HawkularHttpClient hawkularClient;
-    private final MetricsTagger metricsTagger;
+    private final MetricsDecomposer decomposer;
+    private final MetricsTagger tagger;
 
     HawkularReporter(MetricRegistry registry,
                      HawkularHttpClient hawkularClient,
                      Optional<String> prefix,
-                     Map<String, String> globalTags,
-                     Map<String, Map<String, String>> perMetricTags,
-                     Collection<RegexTags> regexTags,
-                     boolean enableAutoTagging,
+                     MetricsDecomposer decomposer,
+                     MetricsTagger tagger,
                      TimeUnit rateUnit,
                      TimeUnit durationUnit,
                      MetricFilter filter) {
@@ -63,8 +62,8 @@ public class HawkularReporter extends ScheduledReporter {
         this.prefix = prefix;
         this.clock = Clock.defaultClock();
         this.hawkularClient = hawkularClient;
-        metricsTagger = new MetricsTagger(prefix, globalTags, perMetricTags, regexTags, enableAutoTagging,
-                hawkularClient, registry, filter);
+        this.decomposer = decomposer;
+        this.tagger = tagger;
     }
 
     @Override
@@ -108,25 +107,28 @@ public class HawkularReporter extends ScheduledReporter {
         }
     }
 
-    private static void processMeters(DataAccumulator builder, Map<String, Meter> meters) {
+    private void processMeters(DataAccumulator builder, Map<String, Meter> meters) {
         for (Map.Entry<String, Meter> e : meters.entrySet()) {
-            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
-            MetricComposers.METERED.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
+            MetricsDecomposer.PartsStreamer streamer = decomposer.streamParts(e.getKey());
+            streamer.countings().forEach(metricPart -> builder.addSubCounter(metricPart, e));
+            streamer.metered().forEach(metricPart -> builder.addSubGauge(metricPart, e));
         }
     }
 
-    private static void processHistograms(DataAccumulator builder, Map<String, Histogram> histograms) {
+    private void processHistograms(DataAccumulator builder, Map<String, Histogram> histograms) {
         for (Map.Entry<String, Histogram> e : histograms.entrySet()) {
-            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
-            MetricComposers.SAMPLING.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
+            MetricsDecomposer.PartsStreamer streamer = decomposer.streamParts(e.getKey());
+            streamer.countings().forEach(metricPart -> builder.addSubCounter(metricPart, e));
+            streamer.samplings().forEach(metricPart -> builder.addSubGauge(metricPart, e));
         }
     }
 
-    private static void processTimers(DataAccumulator builder, Map<String, Timer> timers) {
+    private void processTimers(DataAccumulator builder, Map<String, Timer> timers) {
         for (Map.Entry<String, Timer> e : timers.entrySet()) {
-            MetricComposers.COUNTINGS.forEach(metricComposer -> builder.addSubCounter(metricComposer, e));
-            MetricComposers.METERED.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
-            MetricComposers.SAMPLING.forEach(metricComposer -> builder.addSubGauge(metricComposer, e));
+            MetricsDecomposer.PartsStreamer streamer = decomposer.streamParts(e.getKey());
+            streamer.countings().forEach(metricPart -> builder.addSubCounter(metricPart, e));
+            streamer.metered().forEach(metricPart -> builder.addSubGauge(metricPart, e));
+            streamer.samplings().forEach(metricPart -> builder.addSubGauge(metricPart, e));
         }
     }
 
@@ -135,7 +137,7 @@ public class HawkularReporter extends ScheduledReporter {
     }
 
     public Map<String, String> getGlobalTags() {
-        return metricsTagger.getGlobalTags();
+        return tagger.getGlobalTags();
     }
 
     public HawkularHttpClient getHawkularClient() {
@@ -143,11 +145,15 @@ public class HawkularReporter extends ScheduledReporter {
     }
 
     public Map<String, String> getTagsForMetrics(String m) {
-        return metricsTagger.getTagsForMetrics(m);
+        return tagger.getTagsForMetrics(m);
     }
 
-    public boolean isEnableAutoTagging() {
-        return metricsTagger.isEnableAutoTagging();
+    public Optional<Collection<String>> getAllowedParts(String metricName) {
+        return decomposer.getAllowedParts(metricName);
+    }
+
+    public boolean isEnableTagComposition() {
+        return tagger.isEnableTagComposition();
     }
 
     /**
@@ -197,19 +203,19 @@ public class HawkularReporter extends ScheduledReporter {
             return this;
         }
 
-        private <T> DataAccumulator addSubCounter(MetricComposer<T, Long> metricComposer,
+        private <T> DataAccumulator addSubCounter(MetricPart<T, Long> metricPart,
                                                   Map.Entry<String, ? extends T> counterEntry) {
-            String nameWithSuffix = metricComposer.getMetricNameWithSuffix(counterEntry.getKey());
+            String nameWithSuffix = metricPart.getMetricNameWithSuffix(counterEntry.getKey());
             String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
-            counters.put(fullName, metricComposer.getData(counterEntry.getValue()));
+            counters.put(fullName, metricPart.getData(counterEntry.getValue()));
             return this;
         }
 
-        private <T> DataAccumulator addSubGauge(MetricComposer<T, Object> metricComposer,
+        private <T> DataAccumulator addSubGauge(MetricPart<T, Object> metricPart,
                                                 Map.Entry<String, ? extends T> gaugeEntry) {
-            String nameWithSuffix = metricComposer.getMetricNameWithSuffix(gaugeEntry.getKey());
+            String nameWithSuffix = metricPart.getMetricNameWithSuffix(gaugeEntry.getKey());
             String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
-            Object value = metricComposer.getData(gaugeEntry.getValue());
+            Object value = metricPart.getData(gaugeEntry.getValue());
             if (value instanceof BigDecimal) {
                 gauges.put(fullName, ((BigDecimal) value).doubleValue());
             } else if (value != null && value.getClass().isAssignableFrom(Double.class)

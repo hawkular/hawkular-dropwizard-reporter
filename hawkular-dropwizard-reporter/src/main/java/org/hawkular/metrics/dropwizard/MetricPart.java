@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,7 +19,7 @@ package org.hawkular.metrics.dropwizard;
 /**
  * @author Joel Takvorian
  */
-interface MetricComposer<T,U> {
+interface MetricPart<T,U> {
     U getData(T input);
     String getSuffix();
     String getMetricType();

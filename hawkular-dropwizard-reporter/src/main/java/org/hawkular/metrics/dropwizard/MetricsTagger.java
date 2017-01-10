@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -44,20 +44,27 @@ class MetricsTagger implements MetricRegistryListener {
     private final Optional<String> prefix;
     private final Map<String, String> globalTags;
     private final Map<String, Map<String, String>> perMetricTags;
-    private final Collection<RegexTags> regexTags;
-    private final boolean enableAutoTagging;
+    private final Collection<RegexContainer<Map<String, String>>> regexTags;
+    private final boolean enableTagComposition;
     private final HawkularHttpClient hawkularClient;
     private final MetricFilter metricFilter;
+    private final MetricsDecomposer metricsDecomposer;
 
-    MetricsTagger(Optional<String> prefix, Map<String, String> globalTags, Map<String, Map<String, String>>
-            perMetricTags, Collection<RegexTags> regexTags, boolean enableAutoTagging,
-                  HawkularHttpClient hawkularClient, MetricRegistry registry,
+    MetricsTagger(Optional<String> prefix,
+                  Map<String, String> globalTags,
+                  Map<String, Map<String, String>> perMetricTags,
+                  Collection<RegexContainer<Map<String, String>>> regexTags,
+                  boolean enableTagComposition,
+                  MetricsDecomposer metricsDecomposer,
+                  HawkularHttpClient hawkularClient,
+                  MetricRegistry registry,
                   MetricFilter metricFilter) {
         this.prefix = prefix;
         this.globalTags = globalTags;
         this.perMetricTags = perMetricTags;
         this.regexTags = regexTags;
-        this.enableAutoTagging = enableAutoTagging;
+        this.enableTagComposition = enableTagComposition;
+        this.metricsDecomposer = metricsDecomposer;
         this.hawkularClient = hawkularClient;
         this.metricFilter = metricFilter;
 
@@ -71,18 +78,18 @@ class MetricsTagger implements MetricRegistryListener {
         registry.addListener(this);
     }
 
-    private void tagMetric(String baseName, MetricComposer<?,?> metricComposer, String tagKey) {
-        String nameWithSuffix = metricComposer.getMetricNameWithSuffix(baseName);
+    private void tagMetric(String baseName, MetricPart<?,?> metricPart, String tagKey) {
+        String nameWithSuffix = metricPart.getMetricNameWithSuffix(baseName);
         String fullName = prefix.map(p -> p + nameWithSuffix).orElse(nameWithSuffix);
         Map<String, String> tags = new LinkedHashMap<>(globalTags);
-        if (enableAutoTagging) {
-            tags.put(tagKey, metricComposer.getSuffix());
+        if (enableTagComposition) {
+            tags.put(tagKey, metricPart.getSuffix());
         }
         // Don't use prefixed name for per-metric tagging
         tags.putAll(getTagsForMetrics(baseName));
         tags.putAll(getTagsForMetrics(nameWithSuffix));
         if (!tags.isEmpty()) {
-            hawkularClient.putTags("/" + metricComposer.getMetricType()
+            hawkularClient.putTags("/" + metricPart.getMetricType()
                     + "/" + fullName + "/tags", HawkularJson.tagsToString(tags));
         }
     }
@@ -127,12 +134,9 @@ class MetricsTagger implements MetricRegistryListener {
 
     @Override public void onHistogramAdded(String name, Histogram histogram) {
         if (metricFilter.matches(name, histogram)) {
-            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-                tagMetric(name, metricComposer, "histogram");
-            }
-            for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
-                tagMetric(name, metricComposer, "histogram");
-            }
+            MetricsDecomposer.PartsStreamer streamer = metricsDecomposer.streamParts(name);
+            streamer.countings().forEach(metricPart -> tagMetric(name, metricPart, "histogram"));
+            streamer.samplings().forEach(metricPart -> tagMetric(name, metricPart, "histogram"));
         }
     }
 
@@ -141,12 +145,9 @@ class MetricsTagger implements MetricRegistryListener {
 
     @Override public void onMeterAdded(String name, Meter meter) {
         if (metricFilter.matches(name, meter)) {
-            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-                tagMetric(name, metricComposer, "meter");
-            }
-            for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
-                tagMetric(name, metricComposer, "meter");
-            }
+            MetricsDecomposer.PartsStreamer streamer = metricsDecomposer.streamParts(name);
+            streamer.countings().forEach(metricPart -> tagMetric(name, metricPart, "meter"));
+            streamer.metered().forEach(metricPart -> tagMetric(name, metricPart, "meter"));
         }
     }
 
@@ -155,15 +156,10 @@ class MetricsTagger implements MetricRegistryListener {
 
     @Override public void onTimerAdded(String name, Timer timer) {
         if (metricFilter.matches(name, timer)) {
-            for (MetricComposer<?,?> metricComposer : MetricComposers.COUNTINGS) {
-                tagMetric(name, metricComposer, "timer");
-            }
-            for (MetricComposer<?,?> metricComposer : MetricComposers.METERED) {
-                tagMetric(name, metricComposer, "timer");
-            }
-            for (MetricComposer<?,?> metricComposer : MetricComposers.SAMPLING) {
-                tagMetric(name, metricComposer, "timer");
-            }
+            MetricsDecomposer.PartsStreamer streamer = metricsDecomposer.streamParts(name);
+            streamer.countings().forEach(metricPart -> tagMetric(name, metricPart, "timer"));
+            streamer.metered().forEach(metricPart -> tagMetric(name, metricPart, "timer"));
+            streamer.samplings().forEach(metricPart -> tagMetric(name, metricPart, "timer"));
         }
     }
 
@@ -174,8 +170,8 @@ class MetricsTagger implements MetricRegistryListener {
         return globalTags;
     }
 
-    boolean isEnableAutoTagging() {
-        return enableAutoTagging;
+    boolean isEnableTagComposition() {
+        return enableTagComposition;
     }
 
 }

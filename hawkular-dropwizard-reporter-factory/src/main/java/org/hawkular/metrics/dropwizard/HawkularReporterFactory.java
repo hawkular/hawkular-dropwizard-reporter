@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,7 @@
  */
 package org.hawkular.metrics.dropwizard;
 
+import java.util.Collection;
 import java.util.Map;
 
 import javax.validation.constraints.NotNull;
@@ -42,9 +43,10 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     private Map<String, String> headers;
     private Map<String, String> globalTags;
     private Map<String, Map<String, String>> perMetricTags;
-    private Boolean autoTagging;
+    private Boolean tagComposition;
     private Long failoverCacheDuration;
     private Integer failoverCacheMaxSize;
+    private Map<String, Collection<String>> metricComposition;
 
     public HawkularReporterFactory() {
     }
@@ -148,13 +150,13 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
 
     @Override
     @JsonProperty
-    public Boolean getAutoTagging() {
-        return autoTagging;
+    public Boolean getTagComposition() {
+        return tagComposition;
     }
 
     @JsonProperty
-    public void setAutoTagging(Boolean autoTagging) {
-        this.autoTagging = autoTagging;
+    public void setTagComposition(Boolean tagComposition) {
+        this.tagComposition = tagComposition;
     }
 
     @Override
@@ -177,6 +179,17 @@ public class HawkularReporterFactory extends BaseReporterFactory implements Hawk
     @JsonProperty
     public void setFailoverCacheMaxSize(Integer failoverCacheMaxSize) {
         this.failoverCacheMaxSize = failoverCacheMaxSize;
+    }
+
+    @Override
+    @JsonProperty
+    public Map<String, Collection<String>> getMetricComposition() {
+        return metricComposition;
+    }
+
+    @JsonProperty
+    public void setMetricComposition(Map<String, Collection<String>> metricComposition) {
+        this.metricComposition = metricComposition;
     }
 
     @Override

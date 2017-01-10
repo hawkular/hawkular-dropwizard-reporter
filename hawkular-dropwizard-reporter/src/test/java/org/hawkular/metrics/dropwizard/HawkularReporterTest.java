@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.entry;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.stream.StreamSupport;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.assertj.core.api.iterable.Extractor;
+import org.assertj.core.util.Lists;
 import org.hawkular.metrics.reporter.http.HawkularHttpClient;
 import org.hawkular.metrics.reporter.http.HawkularHttpResponse;
 import org.json.JSONArray;
@@ -42,6 +44,7 @@ import org.junit.Test;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 
 /**
@@ -153,6 +156,72 @@ public class HawkularReporterTest {
     }
 
     @Test
+    public void shouldReportPartialHistogram() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .setMetricComposition("my.histogram", Lists.newArrayList("mean", "median", "stddev"))
+                .useHttpClient(uri -> client)
+                .build();
+
+        final Histogram histogram = registry.histogram("my.histogram");
+        histogram.update(3);
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("gauges");
+
+        JSONArray gaugesJson = metrics.getJSONArray("gauges");
+        Map<String, Integer> values = StreamSupport.stream(gaugesJson.spliterator(), false)
+                .collect(toMap(idFromRoot::extract, valueFromRoot::extract));
+        // Note: we extract int values here for simplicity, but actual values are double. The goal is not to test
+        // Dropwizard algorithm for metrics generation, so we don't bother with accuracy.
+        assertThat(values).containsOnly(
+                entry("my.histogram.mean", 3),
+                entry("my.histogram.median", 3),
+                entry("my.histogram.stddev", 0));
+
+        assertThat(client.getTagsRestCalls()).containsOnly(
+                Pair.of("/gauges/my.histogram.mean/tags", "{\"histogram\":\"mean\"}"),
+                Pair.of("/gauges/my.histogram.stddev/tags", "{\"histogram\":\"stddev\"}"),
+                Pair.of("/gauges/my.histogram.median/tags", "{\"histogram\":\"median\"}"));
+    }
+
+    @Test
+    public void shouldReportPartialMetersWithRegex() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .setRegexMetricComposition(Pattern.compile("meter\\.partial\\..+"), Lists.newArrayList("count", "meanrt"))
+                .build();
+
+        final Meter m1 = registry.meter("meter.partial.1");
+        final Meter m2 = registry.meter("meter.partial.2");
+        final Meter m3 = registry.meter("meter.full.3");
+        m1.mark();
+        m2.mark();
+        m3.mark();
+        reporter.report();
+
+        assertThat(client.getMetricsRestCalls()).hasSize(1);
+        JSONObject metrics = new JSONObject(client.getMetricsRestCalls().get(0));
+        assertThat(metrics.keySet()).containsOnly("counters", "gauges");
+        JSONArray counters = metrics.getJSONArray("counters");
+        assertThat(counters).extracting(idFromRoot).containsOnly(
+                "meter.partial.1.count",
+                "meter.partial.2.count",
+                "meter.full.3.count");
+        assertThat(counters).extracting(valueFromRoot).containsExactly(1, 1, 1);
+
+        JSONArray gauges = metrics.getJSONArray("gauges");
+        assertThat(gauges).extracting(idFromRoot).containsOnly(
+                "meter.partial.1.meanrt",
+                "meter.partial.2.meanrt",
+                "meter.full.3.1minrt",
+                "meter.full.3.5minrt",
+                "meter.full.3.15minrt",
+                "meter.full.3.meanrt");
+    }
+
+    @Test
     public void shouldCreateRegexTags() {
         HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
                 .useHttpClient(uri -> client)
@@ -180,6 +249,27 @@ public class HawkularReporterTest {
                 entry("owner", "me"),
                 entry("type", "counter"));
         assertThat(reporter.getTagsForMetrics("your.first.gauge")).isEmpty();
+    }
+
+    @Test
+    public void shouldDefaultBehaviourBeListedLast() {
+        HawkularReporter reporter = HawkularReporter.builder(registry, "unit-test")
+                .useHttpClient(uri -> client)
+                .setMetricComposition("meter.1", Lists.newArrayList("count", "meanrt", "1minrt"))
+                .setRegexMetricComposition(Pattern.compile("meter\\.2"), Lists.newArrayList("count", "meanrt", "15minrt"))
+                // Here is the default behaviour => every regex beyond this point will be ignored
+                .setRegexMetricComposition(Pattern.compile(".*"), Lists.newArrayList("count", "meanrt"))
+                .setRegexMetricComposition(Pattern.compile("meter\\.3"), Lists.newArrayList("count", "meanrt", "15minrt"))
+                .build();
+
+        Optional<Collection<String>> parts = reporter.getAllowedParts("meter.1");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt", "1minrt"));
+
+        parts = reporter.getAllowedParts("meter.2");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt", "15minrt"));
+
+        parts = reporter.getAllowedParts("meter.3");
+        assertThat(parts).hasValueSatisfying(col -> assertThat(col).containsOnly("count", "meanrt"));
     }
 
     @Test

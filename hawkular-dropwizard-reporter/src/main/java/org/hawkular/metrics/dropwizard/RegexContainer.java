@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat, Inc. and/or its affiliates
+ * Copyright 2016-2017 Red Hat, Inc. and/or its affiliates
  * and other contributors as indicated by the @author tags.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,7 +16,6 @@
  */
 package org.hawkular.metrics.dropwizard;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -24,20 +23,20 @@ import java.util.regex.PatternSyntaxException;
 /**
  * @author Joel Takvorian
  */
-class RegexTags {
+class RegexContainer<T> {
     private final Pattern regex;
-    private final Map<String, String> tags;
+    private final T content;
 
-    RegexTags(Pattern regex, Map<String, String> tags) {
+    RegexContainer(Pattern regex, T content) {
         this.regex = regex;
-        this.tags = tags;
+        this.content = content;
     }
 
-    static Optional<RegexTags> checkAndCreate(String maybeRegex, Map<String, String> tags) {
+    static <T> Optional<RegexContainer<T>> checkAndCreate(String maybeRegex, T content) {
         if (maybeRegex.startsWith("/") && maybeRegex.endsWith("/")) {
             try {
                 Pattern regex = Pattern.compile(maybeRegex.substring(1, maybeRegex.length() - 1));
-                return Optional.of(new RegexTags(regex, tags));
+                return Optional.of(new RegexContainer<>(regex, content));
             } catch (PatternSyntaxException e) {
                 return Optional.empty();
             }
@@ -45,9 +44,9 @@ class RegexTags {
         return Optional.empty();
     }
 
-    Optional<Map<String, String>> match(String metricName) {
+    Optional<T> match(String metricName) {
         if (regex.matcher(metricName).find()) {
-            return Optional.of(tags);
+            return Optional.of(content);
         }
         return Optional.empty();
     }
