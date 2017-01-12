@@ -46,6 +46,22 @@ If you want to use a different HTTP client, you would just have to implement the
                 .build();
 ````
 
+### Other builder options
+
+* `basicAuth`: use when the Hawkular server requires an HTTP basic authentication.
+* `bearerToken`: use when the Hawkular server requires a token-based authentication (like with OpenShift).
+* `addHeader`: add any custom header you would like along with Hawkular requests.
+* `prefixedWith`: add a prefix to all metrics when they are reported to Hawkular.
+* `filter`: implement `MetricFilter` to exclude some metrics from reporting.
+* `globalTags` / `addGlobalTag`: add one or more tags that will be applied to all metrics reported in Hawkular.
+* `perMetricTags` / `addMetricTag`: add one or more tags that will be applied to the specified metric(s) in Hawkular.
+* `addRegexTag`: same as above, but using a regexp pattern for metrics selection.
+* `disableTagComposition`: turn off automatic tagging of metric composition when applicable (for exemple, a Meter metric will generate a tag "meter:5minrt" on its 5-minutes-rate component).
+* `metricComposition` / `setMetricComposition`: set composing parts for a given metric name (see section "How it works" below, for more information). By default, all available parts are used.
+* `setRegexMetricComposition`: same as above, using regexp.
+* `failoverCacheDuration` (+InXX): set the failover cache duration. This cache is used to store post attempts in memory when the Hawkular server cannot be reached. Default is 10 minutes.
+* `failoverCacheMaxSize`: set the failover cache maximum size, in number of requests. Unset by default (ie. there's no maximum).
+
 ## Usage in a Dropwizard application
 
 You can use the Hawkular Dropwizard Reporter in a Dropwizard application by simply editing your app .yml file and
