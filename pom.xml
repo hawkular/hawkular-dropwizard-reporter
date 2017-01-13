@@ -28,7 +28,7 @@
 
   <groupId>org.hawkular.metrics</groupId>
   <artifactId>hawkular-dropwizard-reporter-parent</artifactId>
-  <version>0.1.1</version>
+  <version>0.1.2-SNAPSHOT</version>
   <packaging>pom</packaging>
 
   <name>Hawkular Dropwizard Reporter parent POM</name>
