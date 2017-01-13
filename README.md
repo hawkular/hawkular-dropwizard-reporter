@@ -11,7 +11,7 @@ To use the Hawkular Dropwizard Reporter in any Java application:
     <dependency>
         <groupId>org.hawkular.metrics</groupId>
         <artifactId>hawkular-dropwizard-reporter</artifactId>
-        <version>0.1.0</version>
+        <version>0.1.1</version>
     </dependency>
 ````
 
@@ -80,7 +80,7 @@ You must also add a module dependency to hawkular-dropwizard-reporter-factory (i
     <dependency>
         <groupId>org.hawkular.metrics</groupId>
         <artifactId>hawkular-dropwizard-reporter-factory</artifactId>
-        <version>0.1.0</version>
+        <version>0.1.1</version>
     </dependency>
 ````
 
@@ -133,4 +133,11 @@ Suffix | Description | Applies to
 
 Note that, because these suffixes are only added on the Hawkular metric names and not on Dropwizard metric names, you
 cannot use dropwizard metric filters to blacklist metrics based on their suffixes (for instance, all 75th percentile metrics).
-There is no way to do that at the moment.
+
+However you can use the `HawkularReporterBuilder.metricComposition` (or other variations `setMetricComposition` and `setRegexMetricComposition`) to keep only the suffixes you want for a given metric or metrics pattern.
+For instance:
+````
+        HawkularReporter reporter = HawkularReporter.builder(registry, "my-tenant")
+            .setMetricComposition("my-metric", Lists.newArrayList("1minrt", "meanrt", "count"))
+            .build();
+````
